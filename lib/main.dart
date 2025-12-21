@@ -1,7 +1,42 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+/// ------------------------------
+/// Whimsical Style System ✨
+/// ------------------------------
+class AppStyle {
+  // Pastel-ish palette
+  static const primary = Color(0xFF7C5CFF); // periwinkle
+  static const secondary = Color(0xFFFF5DA2); // pink
+  static const tertiary = Color(0xFF2AD4D9); // aqua
+  static const sunshine = Color(0xFFFFC857); // warm yellow
+  static const mint = Color(0xFF7AE7C7);
+  static const bg = Color(0xFFF7F6FF); // soft lilac-gray
+
+  static LinearGradient headerGradient(BuildContext context) => const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [primary, secondary],
+      );
+
+  static LinearGradient pageWash() => const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFFF7F6FF), Color(0xFFFFFFFF)],
+      );
+
+  static Color fundColor(FundType t) {
+    switch (t) {
+      case FundType.lilTreat:
+        return sunshine;
+      case FundType.funPurchase:
+        return secondary;
+      case FundType.saver:
+        return tertiary;
+    }
+  }
+}
 
 void main() {
   runApp(const HabitApp());
@@ -64,8 +99,7 @@ class DayLog {
         dateKey: json['dateKey'] as String,
         note: (json['note'] as String?) ?? '',
         completedHabitIds: Set<String>.from(
-          (json['completedHabitIds'] as List<dynamic>? ?? const [])
-              .map((e) => e as String),
+          (json['completedHabitIds'] as List<dynamic>? ?? const []).map((e) => e as String),
         ),
       );
 }
@@ -126,8 +160,62 @@ class HabitApp extends StatelessWidget {
     return MaterialApp(
       title: "zarin’s habit system",
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppStyle.primary,
+          brightness: Brightness.light,
+        ).copyWith(
+          primary: AppStyle.primary,
+          secondary: AppStyle.secondary,
+          tertiary: AppStyle.tertiary,
+          surface: Colors.white,
+          background: AppStyle.bg,
+        ),
+        scaffoldBackgroundColor: AppStyle.bg,
+
+        // Softer, rounder cards
+        cardTheme: CardThemeData(
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+          color: Colors.white,
+          margin: EdgeInsets.zero,
+        ),
+
+        // Rounder inputs
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: const Color(0xFFF3F1FF),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: AppStyle.primary, width: 2),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        ),
+
+        // Rounder buttons
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            textStyle: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          ),
+        ),
+
+        // A lil more playful typography
+        textTheme: const TextTheme(
+          titleLarge: TextStyle(fontWeight: FontWeight.w800),
+          titleMedium: TextStyle(fontWeight: FontWeight.w700),
+        ),
       ),
       home: const HabitHome(),
     );
@@ -189,7 +277,6 @@ class _HabitHomeState extends State<HabitHome> {
     // Habits
     final habitsRaw = prefs.getString(_kHabits);
     if (habitsRaw == null) {
-      // seed with a few defaults so it doesn't start empty
       _habits.addAll(_seedHabits());
     } else {
       final list = (jsonDecode(habitsRaw) as List).cast<dynamic>();
@@ -216,7 +303,6 @@ class _HabitHomeState extends State<HabitHome> {
   }
 
   List<Habit> _seedHabits() {
-    // You’ll customize this in the Point Menu tab.
     return [
       Habit(id: 'h_water', name: 'drink water', points: 1, reasoning: 'baseline care'),
       Habit(id: 'h_walk', name: 'walk (10+ min)', points: 2, reasoning: 'movement helps my brain'),
@@ -287,7 +373,6 @@ class _HabitHomeState extends State<HabitHome> {
         onDeleteHabit: (id) async {
           setState(() {
             _habits.removeWhere((h) => h.id == id);
-            // Remove from all logs too
             for (final log in _logsByDate.values) {
               log.completedHabitIds.remove(id);
             }
@@ -299,9 +384,7 @@ class _HabitHomeState extends State<HabitHome> {
       _DailyPage(
         habits: _habits,
         dateKey: _selectedDateKey,
-        onPickDate: (key) {
-          setState(() => _selectedDateKey = key);
-        },
+        onPickDate: (key) => setState(() => _selectedDateKey = key),
         log: _currentLog(),
         earnedPoints: _earnedPointsForLog(_currentLog()),
         onToggleHabit: (habitId, checked) async {
@@ -321,18 +404,14 @@ class _HabitHomeState extends State<HabitHome> {
           await _saveLogs();
         },
         onDeposit: (fund, amount) async {
-          setState(() {
-            _setFundValue(fund, _fundValue(fund) + amount);
-          });
+          setState(() => _setFundValue(fund, _fundValue(fund) + amount));
           await _saveFunds();
         },
       ),
       _FundsPage(
         fundValue: (t) => _fundValue(t),
         onAdjust: (t, delta) async {
-          setState(() {
-            _setFundValue(t, (_fundValue(t) + delta).clamp(0, 1e12));
-          });
+          setState(() => _setFundValue(t, (_fundValue(t) + delta).clamp(0, 1e12)));
           await _saveFunds();
         },
       ),
@@ -341,15 +420,24 @@ class _HabitHomeState extends State<HabitHome> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("zarin’s habit system"),
+        centerTitle: false,
+        foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: AppStyle.headerGradient(context),
+          ),
+        ),
       ),
       body: pages[_tabIndex],
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tabIndex,
         onDestinationSelected: (i) => setState(() => _tabIndex = i),
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.menu_book), label: 'point menu'),
-          NavigationDestination(icon: Icon(Icons.today), label: 'daily'),
-          NavigationDestination(icon: Icon(Icons.savings), label: 'funds'),
+          NavigationDestination(icon: Icon(Icons.menu_book), label: 'menu ✎'),
+          NavigationDestination(icon: Icon(Icons.today), label: 'today ✨'),
+          NavigationDestination(icon: Icon(Icons.savings), label: 'funds 💸'),
         ],
       ),
     );
@@ -373,96 +461,106 @@ class _PointMenuPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'point menu',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+    return Container(
+      decoration: BoxDecoration(gradient: AppStyle.pageWash()),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'point menu',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Set point values for habits + exercise based on what motivates you right now.',
+            const SizedBox(height: 8),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Set point values for habits + exercise based on what motivates you right now.'),
             ),
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: ListView.separated(
-              itemCount: habits.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
-              itemBuilder: (context, i) {
-                final h = habits[i];
-                return ListTile(
-                  title: Text(h.name),
-                  subtitle: Text(
-                    [
-                      '${h.points} pts',
-                      if (h.isExercise) 'exercise',
-                      if ((h.reasoning ?? '').trim().isNotEmpty) '“${h.reasoning}”',
-                    ].join(' • '),
-                  ),
-                  trailing: Wrap(
-                    spacing: 8,
-                    children: [
-                      IconButton(
-                        tooltip: 'edit',
-                        onPressed: () async {
-                          await _editHabitDialog(context, h);
-                          onChanged();
-                        },
-                        icon: const Icon(Icons.edit),
+            const SizedBox(height: 16),
+            Expanded(
+              child: Card(
+                child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  itemCount: habits.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, i) {
+                    final h = habits[i];
+                    return ListTile(
+                      title: Text(h.name),
+                      subtitle: Text(
+                        [
+                          '${h.points} pts',
+                          if (h.isExercise) 'exercise',
+                          if ((h.reasoning ?? '').trim().isNotEmpty) '“${h.reasoning}”',
+                        ].join(' • '),
                       ),
-                      IconButton(
-                        tooltip: 'delete',
-                        onPressed: () async {
-                          final ok = await showDialog<bool>(
-                            context: context,
-                            builder: (_) => AlertDialog(
-                              title: const Text('Delete habit?'),
-                              content: Text('Delete “${h.name}” everywhere?'),
-                              actions: [
-                                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                                FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
-                              ],
-                            ),
-                          );
-                          if (ok == true) {
-                            await onDeleteHabit(h.id);
-                          }
-                        },
-                        icon: const Icon(Icons.delete_outline),
+                      trailing: Wrap(
+                        spacing: 8,
+                        children: [
+                          IconButton(
+                            tooltip: 'edit',
+                            onPressed: () async {
+                              await _editHabitDialog(context, h);
+                              onChanged();
+                            },
+                            icon: const Icon(Icons.edit),
+                          ),
+                          IconButton(
+                            tooltip: 'delete',
+                            onPressed: () async {
+                              final ok = await showDialog<bool>(
+                                context: context,
+                                builder: (_) => AlertDialog(
+                                  title: const Text('Delete habit?'),
+                                  content: Text('Delete “${h.name}” everywhere?'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context, false),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    FilledButton(
+                                      onPressed: () => Navigator.pop(context, true),
+                                      child: const Text('Delete'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (ok == true) {
+                                await onDeleteHabit(h.id);
+                              }
+                            },
+                            icon: const Icon(Icons.delete_outline),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                );
-              },
+                    );
+                  },
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: () async {
-                final newHabit = Habit(
-                  id: 'h_${DateTime.now().microsecondsSinceEpoch}',
-                  name: 'new habit',
-                  points: 1,
-                );
-                habits.add(newHabit);
-                await _editHabitDialog(context, newHabit);
-                onChanged();
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('add habit'),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () async {
+                  final newHabit = Habit(
+                    id: 'h_${DateTime.now().microsecondsSinceEpoch}',
+                    name: 'new habit',
+                    points: 1,
+                  );
+                  habits.add(newHabit);
+                  await _editHabitDialog(context, newHabit);
+                  onChanged();
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('add habit'),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -589,31 +687,34 @@ class _DailyPageState extends State<_DailyPage> {
   Widget build(BuildContext context) {
     final earnedDollars = widget.earnedPoints.toDouble(); // 1 point == $1 in v1
 
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isWide = constraints.maxWidth >= 900;
-          final left = _dailyLeft(context, earnedDollars);
-          final right = _dailyRight(context);
+    return Container(
+      decoration: BoxDecoration(gradient: AppStyle.pageWash()),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth >= 900;
+            final left = _dailyLeft(context, earnedDollars);
+            final right = _dailyRight(context);
 
-          return isWide
-              ? Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: SingleChildScrollView(child: left)),
-                    const SizedBox(width: 16),
-                    SizedBox(width: 420, child: SingleChildScrollView(child: right)),
-                  ],
-                )
-              : ListView(
-                  children: [
-                    left,
-                    const SizedBox(height: 16),
-                    right,
-                  ],
-                );
-        },
+            return isWide
+                ? Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: SingleChildScrollView(child: left)),
+                      const SizedBox(width: 16),
+                      SizedBox(width: 420, child: SingleChildScrollView(child: right)),
+                    ],
+                  )
+                : ListView(
+                    children: [
+                      left,
+                      const SizedBox(height: 16),
+                      right,
+                    ],
+                  );
+          },
+        ),
       ),
     );
   }
@@ -627,21 +728,42 @@ class _DailyPageState extends State<_DailyPage> {
           children: [
             _dateRow(context),
             const SizedBox(height: 12),
-            Text(
-              'today earned: \$${earnedDollars.toStringAsFixed(0)}',
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+
+            // cute badge ✨
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  'today',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 26),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEDE9FF),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: const Color(0xFFD7CFFF)),
+                  ),
+                  child: Text(
+                    'earned \$${earnedDollars.toStringAsFixed(0)} ✨',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
+
+            const SizedBox(height: 14),
             const Text('daily note'),
             const SizedBox(height: 8),
 
-            // ✅ controller is stable now
+            // controller is stable (cursor fix)
             TextField(
               controller: _noteCtrl,
               maxLines: 4,
               decoration: const InputDecoration(
                 hintText: 'a few words… or a full rant…',
-                border: OutlineInputBorder(),
               ),
             ),
 
@@ -653,7 +775,7 @@ class _DailyPageState extends State<_DailyPage> {
               return CheckboxListTile(
                 value: checked,
                 onChanged: (v) => widget.onToggleHabit(h.id, v ?? false),
-                title: Text(h.name),
+                title: Text(h.isExercise ? '🏃 ${h.name}' : h.name),
                 subtitle: Text('${h.points} pts${h.isExercise ? ' • exercise' : ''}'),
                 controlAffinity: ListTileControlAffinity.leading,
               );
@@ -677,7 +799,7 @@ class _DailyPageState extends State<_DailyPage> {
             const SizedBox(height: 8),
             Text(
               'available to deposit: \$${earnedDollars.toStringAsFixed(0)}',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 12),
             _fundDepositButton(context, FundType.lilTreat, earnedDollars),
@@ -688,7 +810,7 @@ class _DailyPageState extends State<_DailyPage> {
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 8),
-            const Text('v1 notes', style: TextStyle(fontWeight: FontWeight.w600)),
+            const Text('v1 notes', style: TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: 6),
             const Text(
               '• v1 uses 1 point = \$1\n'
@@ -702,15 +824,25 @@ class _DailyPageState extends State<_DailyPage> {
   }
 
   Widget _fundDepositButton(BuildContext context, FundType fund, double amount) {
+    final fundColor = AppStyle.fundColor(fund);
+
     return SizedBox(
       width: double.infinity,
       child: FilledButton.icon(
+        style: FilledButton.styleFrom(
+          backgroundColor: fundColor,
+          foregroundColor: Colors.black87,
+        ),
         onPressed: amount <= 0
             ? null
             : () async {
                 await widget.onDeposit(fund, amount);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('deposited \$${amount.toStringAsFixed(0)} into ${fund.label}')),
+                  SnackBar(
+                    behavior: SnackBarBehavior.floating,
+                    backgroundColor: Colors.black87,
+                    content: Text('deposited \$${amount.toStringAsFixed(0)} into ${fund.label} ✨'),
+                  ),
                 );
               },
         icon: Icon(fund.icon),
@@ -724,7 +856,7 @@ class _DailyPageState extends State<_DailyPage> {
       children: [
         Text(
           widget.dateKey,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
         ),
         const Spacer(),
         OutlinedButton.icon(
@@ -752,7 +884,6 @@ class _DailyPageState extends State<_DailyPage> {
   }
 }
 
-
 /// ------------------------------
 /// Funds Page
 /// ------------------------------
@@ -770,74 +901,109 @@ class _FundsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     Widget card(FundType t, String description) {
       final v = fundValue(t);
+      final c = AppStyle.fundColor(t);
+
       return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // colored header strip
+            Container(
+              decoration: BoxDecoration(
+                color: c.withOpacity(0.35),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(22),
+                  topRight: Radius.circular(22),
+                ),
+              ),
+              padding: const EdgeInsets.all(16),
+              child: Row(
                 children: [
-                  Icon(t.icon),
-                  const SizedBox(width: 8),
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: c,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(t.icon, color: Colors.black87),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      t.label,
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(description),
+                  const SizedBox(height: 12),
                   Text(
-                    t.label,
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                    '\$${v.toStringAsFixed(2)}',
+                    style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () => _spendDialog(context, t),
+                        icon: const Icon(Icons.remove),
+                        label: const Text('spend'),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: c,
+                          foregroundColor: Colors.black87,
+                        ),
+                        onPressed: () => _addDialog(context, t),
+                        icon: const Icon(Icons.add),
+                        label: const Text('add'),
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Text(description),
-              const SizedBox(height: 12),
-              Text(
-                '\$${v.toStringAsFixed(2)}',
-                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: () => _spendDialog(context, t),
-                    icon: const Icon(Icons.remove),
-                    label: const Text('spend'),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton.icon(
-                    onPressed: () => _addDialog(context, t),
-                    icon: const Icon(Icons.add),
-                    label: const Text('add'),
-                  ),
-                ],
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
     }
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        card(
-          FundType.lilTreat,
-          'coffee, croissants, lil snacks, movie solo — spend pretty quickly.',
-        ),
-        card(
-          FundType.funPurchase,
-          'save up for a fun want (new shoes, skincare, class, etc).',
-        ),
-        card(
-          FundType.saver,
-          'big life stuff: trips, house, wedding, “i’ll be rich eventually” energy.',
-        ),
-        const SizedBox(height: 12),
-        const Padding(
-          padding: EdgeInsets.only(left: 4),
-          child: Text(
-            'Tip: funds are saved in your browser (localStorage) automatically.',
+    return Container(
+      decoration: BoxDecoration(gradient: AppStyle.pageWash()),
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          card(
+            FundType.lilTreat,
+            'coffee, croissants, lil snacks, movie solo — spend pretty quickly.',
           ),
-        ),
-      ],
+          const SizedBox(height: 12),
+          card(
+            FundType.funPurchase,
+            'save up for a fun want (new shoes, skincare, class, etc).',
+          ),
+          const SizedBox(height: 12),
+          card(
+            FundType.saver,
+            'big life stuff: trips, house, wedding, “i’ll be rich eventually” energy.',
+          ),
+          const SizedBox(height: 12),
+          const Padding(
+            padding: EdgeInsets.only(left: 4),
+            child: Text('Tip: funds are saved in your browser (localStorage) automatically.'),
+          ),
+        ],
+      ),
     );
   }
 
