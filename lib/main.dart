@@ -522,8 +522,7 @@ class _PointMenuPage extends StatelessWidget {
 /// ------------------------------
 /// Daily Page
 /// ------------------------------
-
-class _DailyPage extends StatelessWidget {
+class _DailyPage extends StatefulWidget {
   final List<Habit> habits;
   final String dateKey;
   final void Function(String newDateKey) onPickDate;
@@ -547,8 +546,48 @@ class _DailyPage extends StatelessWidget {
   });
 
   @override
+  State<_DailyPage> createState() => _DailyPageState();
+}
+
+class _DailyPageState extends State<_DailyPage> {
+  late final TextEditingController _noteCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _noteCtrl = TextEditingController(text: widget.log.note);
+
+    // Save without rebuilding a new controller
+    _noteCtrl.addListener(() {
+      widget.onNoteChanged(_noteCtrl.text);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _DailyPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // If user picked a different day/log, update the controller text once
+    if (oldWidget.dateKey != widget.dateKey) {
+      final newText = widget.log.note;
+      if (_noteCtrl.text != newText) {
+        _noteCtrl.value = TextEditingValue(
+          text: newText,
+          selection: TextSelection.collapsed(offset: newText.length),
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _noteCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final earnedDollars = earnedPoints.toDouble(); // 1 point == $1 in v1
+    final earnedDollars = widget.earnedPoints.toDouble(); // 1 point == $1 in v1
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -559,32 +598,21 @@ class _DailyPage extends StatelessWidget {
           final right = _dailyRight(context);
 
           return isWide
-    ? Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Left can be tall too, so make it scrollable as well
-          Expanded(
-            child: SingleChildScrollView(
-              child: left,
-            ),
-          ),
-          const SizedBox(width: 16),
-          SizedBox(
-            width: 420,
-            child: SingleChildScrollView(
-              child: right,
-            ),
-          ),
-        ],
-      )
-    : ListView(
-        children: [
-          left,
-          const SizedBox(height: 16),
-          right,
-        ],
-      );
-
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: SingleChildScrollView(child: left)),
+                    const SizedBox(width: 16),
+                    SizedBox(width: 420, child: SingleChildScrollView(child: right)),
+                  ],
+                )
+              : ListView(
+                  children: [
+                    left,
+                    const SizedBox(height: 16),
+                    right,
+                  ],
+                );
         },
       ),
     );
@@ -606,23 +634,25 @@ class _DailyPage extends StatelessWidget {
             const SizedBox(height: 12),
             const Text('daily note'),
             const SizedBox(height: 8),
+
+            // ✅ controller is stable now
             TextField(
+              controller: _noteCtrl,
               maxLines: 4,
-              controller: TextEditingController(text: log.note),
-              onChanged: (v) => onNoteChanged(v),
               decoration: const InputDecoration(
                 hintText: 'a few words… or a full rant…',
                 border: OutlineInputBorder(),
               ),
             ),
+
             const SizedBox(height: 16),
             const Text('habits completed'),
             const SizedBox(height: 8),
-            ...habits.map((h) {
-              final checked = log.completedHabitIds.contains(h.id);
+            ...widget.habits.map((h) {
+              final checked = widget.log.completedHabitIds.contains(h.id);
               return CheckboxListTile(
                 value: checked,
-                onChanged: (v) => onToggleHabit(h.id, v ?? false),
+                onChanged: (v) => widget.onToggleHabit(h.id, v ?? false),
                 title: Text(h.name),
                 subtitle: Text('${h.points} pts${h.isExercise ? ' • exercise' : ''}'),
                 controlAffinity: ListTileControlAffinity.leading,
@@ -635,7 +665,7 @@ class _DailyPage extends StatelessWidget {
   }
 
   Widget _dailyRight(BuildContext context) {
-    final earnedDollars = earnedPoints.toDouble();
+    final earnedDollars = widget.earnedPoints.toDouble();
 
     return Card(
       child: Padding(
@@ -658,10 +688,7 @@ class _DailyPage extends StatelessWidget {
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 8),
-            const Text(
-              'v1 notes',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
+            const Text('v1 notes', style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
             const Text(
               '• v1 uses 1 point = \$1\n'
@@ -681,9 +708,7 @@ class _DailyPage extends StatelessWidget {
         onPressed: amount <= 0
             ? null
             : () async {
-                // In v1 we don't “deduct” from available because we haven't implemented
-                // a strict accounting of daily earnings vs deposits (easy add later).
-                await onDeposit(fund, amount);
+                await widget.onDeposit(fund, amount);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('deposited \$${amount.toStringAsFixed(0)} into ${fund.label}')),
                 );
@@ -698,14 +723,14 @@ class _DailyPage extends StatelessWidget {
     return Row(
       children: [
         Text(
-          dateKey,
+          widget.dateKey,
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
         const Spacer(),
         OutlinedButton.icon(
           onPressed: () async {
             final now = DateTime.now();
-            final initial = DateTime.tryParse(dateKey) ?? now;
+            final initial = DateTime.tryParse(widget.dateKey) ?? now;
             final picked = await showDatePicker(
               context: context,
               firstDate: DateTime(now.year - 2),
@@ -716,7 +741,7 @@ class _DailyPage extends StatelessWidget {
               final y = picked.year.toString().padLeft(4, '0');
               final m = picked.month.toString().padLeft(2, '0');
               final d = picked.day.toString().padLeft(2, '0');
-              onPickDate('$y-$m-$d');
+              widget.onPickDate('$y-$m-$d');
             }
           },
           icon: const Icon(Icons.calendar_month),
@@ -726,6 +751,7 @@ class _DailyPage extends StatelessWidget {
     );
   }
 }
+
 
 /// ------------------------------
 /// Funds Page
