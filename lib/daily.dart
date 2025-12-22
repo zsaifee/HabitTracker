@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+
 import 'app_style.dart';
 import 'habit.dart';
 import 'fund_type.dart';
 import 'day_log.dart';
-
 
 class DailyPage extends StatefulWidget {
   final List<Habit> habits;
@@ -17,7 +17,8 @@ class DailyPage extends StatefulWidget {
   final Future<void> Function(String note) onNoteChanged;
   final Future<void> Function(FundType fund, double amount) onDeposit;
 
-  const DailyPage({super.key, 
+  const DailyPage({
+    super.key,
     required this.habits,
     required this.dateKey,
     required this.onPickDate,
@@ -40,7 +41,6 @@ class _DailyPageState extends State<DailyPage> {
     super.initState();
     _noteCtrl = TextEditingController(text: widget.log.note);
 
-    // Save without rebuilding a new controller
     _noteCtrl.addListener(() {
       widget.onNoteChanged(_noteCtrl.text);
     });
@@ -50,7 +50,6 @@ class _DailyPageState extends State<DailyPage> {
   void didUpdateWidget(covariant DailyPage oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    // If user picked a different day/log, update the controller text once
     if (oldWidget.dateKey != widget.dateKey) {
       final newText = widget.log.note;
       if (_noteCtrl.text != newText) {
@@ -70,7 +69,7 @@ class _DailyPageState extends State<DailyPage> {
 
   @override
   Widget build(BuildContext context) {
-    final earnedDollars = widget.earnedPoints.toDouble(); // 1 point == $1 in v1
+    final earnedDollars = widget.earnedPoints.toDouble();
 
     return Container(
       decoration: BoxDecoration(gradient: AppStyle.pageWash()),
@@ -88,7 +87,10 @@ class _DailyPageState extends State<DailyPage> {
                     children: [
                       Expanded(child: SingleChildScrollView(child: left)),
                       const SizedBox(width: 16),
-                      SizedBox(width: 420, child: SingleChildScrollView(child: right)),
+                      SizedBox(
+                        width: 420,
+                        child: SingleChildScrollView(child: right),
+                      ),
                     ],
                   )
                 : ListView(
@@ -113,8 +115,6 @@ class _DailyPageState extends State<DailyPage> {
           children: [
             _dateRow(context),
             const SizedBox(height: 12),
-
-            // cute badge ✨
             Wrap(
               spacing: 10,
               runSpacing: 10,
@@ -122,10 +122,14 @@ class _DailyPageState extends State<DailyPage> {
               children: [
                 Text(
                   'today',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 26),
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontSize: 26),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: const Color(0xFFEDE9FF),
                     borderRadius: BorderRadius.circular(999),
@@ -138,12 +142,9 @@ class _DailyPageState extends State<DailyPage> {
                 ),
               ],
             ),
-
             const SizedBox(height: 14),
             const Text('daily note'),
             const SizedBox(height: 8),
-
-            // controller is stable (cursor fix)
             TextField(
               controller: _noteCtrl,
               maxLines: 4,
@@ -151,17 +152,20 @@ class _DailyPageState extends State<DailyPage> {
                 hintText: 'a few words… or a full rant…',
               ),
             ),
-
             const SizedBox(height: 16),
             const Text('habits completed'),
             const SizedBox(height: 8),
             ...widget.habits.map((h) {
-              final checked = widget.log.completedHabitIds.contains(h.id);
+              final checked =
+                  widget.log.completedHabitIds.contains(h.id);
               return CheckboxListTile(
                 value: checked,
-                onChanged: (v) => widget.onToggleHabit(h.id, v ?? false),
+                onChanged: (v) =>
+                    widget.onToggleHabit(h.id, v ?? false),
                 title: Text(h.isExercise ? '🏃 ${h.name}' : h.name),
-                subtitle: Text('${h.points} pts${h.isExercise ? ' • exercise' : ''}'),
+                subtitle: Text(
+                  '${h.points} pts${h.isExercise ? ' • exercise' : ''}',
+                ),
                 controlAffinity: ListTileControlAffinity.leading,
               );
             }),
@@ -184,7 +188,10 @@ class _DailyPageState extends State<DailyPage> {
             const SizedBox(height: 8),
             Text(
               'available to deposit: \$${earnedDollars.toStringAsFixed(0)}',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 12),
             _fundDepositButton(context, FundType.lilTreat, earnedDollars),
@@ -195,7 +202,10 @@ class _DailyPageState extends State<DailyPage> {
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 8),
-            const Text('v1 notes', style: TextStyle(fontWeight: FontWeight.w700)),
+            const Text(
+              'v1 notes',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 6),
             const Text(
               '• v1 uses 1 point = \$1\n'
@@ -208,7 +218,11 @@ class _DailyPageState extends State<DailyPage> {
     );
   }
 
-  Widget _fundDepositButton(BuildContext context, FundType fund, double amount) {
+  Widget _fundDepositButton(
+    BuildContext context,
+    FundType fund,
+    double amount,
+  ) {
     final fundColor = AppStyle.fundColor(fund);
 
     return SizedBox(
@@ -221,12 +235,20 @@ class _DailyPageState extends State<DailyPage> {
         onPressed: amount <= 0
             ? null
             : () async {
+                // ✅ OPTION A: capture BEFORE await
+                final messenger = ScaffoldMessenger.of(context);
+
                 await widget.onDeposit(fund, amount);
-                ScaffoldMessenger.of(context).showSnackBar(
+                if (!mounted) return;
+
+                messenger.showSnackBar(
                   SnackBar(
                     behavior: SnackBarBehavior.floating,
                     backgroundColor: Colors.black87,
-                    content: Text('deposited \$${amount.toStringAsFixed(0)} into ${fund.label} ✨'),
+                    content: Text(
+                      'deposited \$${amount.toStringAsFixed(0)} '
+                      'into ${fund.label} ✨',
+                    ),
                   ),
                 );
               },
@@ -241,19 +263,27 @@ class _DailyPageState extends State<DailyPage> {
       children: [
         Text(
           widget.dateKey,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         const Spacer(),
         OutlinedButton.icon(
           onPressed: () async {
             final now = DateTime.now();
-            final initial = DateTime.tryParse(widget.dateKey) ?? now;
+            final initial =
+                DateTime.tryParse(widget.dateKey) ?? now;
+
             final picked = await showDatePicker(
               context: context,
               firstDate: DateTime(now.year - 2),
               lastDate: DateTime(now.year + 2),
               initialDate: initial,
             );
+
+            if (!mounted) return;
+
             if (picked != null) {
               final y = picked.year.toString().padLeft(4, '0');
               final m = picked.month.toString().padLeft(2, '0');
