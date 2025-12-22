@@ -7,7 +7,7 @@ class FundsPage extends StatelessWidget {
   final double Function(FundType) fundValue;
   final Future<void> Function(FundType, double delta) onAdjust;
 
-  const FundsPage({
+  const FundsPage({super.key, 
     required this.fundValue,
     required this.onAdjust,
   });

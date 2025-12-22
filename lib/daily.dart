@@ -17,7 +17,7 @@ class DailyPage extends StatefulWidget {
   final Future<void> Function(String note) onNoteChanged;
   final Future<void> Function(FundType fund, double amount) onDeposit;
 
-  const DailyPage({
+  const DailyPage({super.key, 
     required this.habits,
     required this.dateKey,
     required this.onPickDate,

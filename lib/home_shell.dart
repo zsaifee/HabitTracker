@@ -9,6 +9,7 @@ import 'point_menu.dart';
 import 'daily.dart';
 import 'funds.dart';
 import 'storage_service.dart';
+import 'profile.dart';
 
 class HabitHome extends StatefulWidget {
   const HabitHome({super.key});
@@ -24,6 +25,9 @@ class _HabitHomeState extends State<HabitHome> {
 
   final List<Habit> _habits = [];
   final Map<String, DayLog> _logsByDate = {}; // dateKey -> DayLog
+
+  List<Profile> _profiles = [];
+  String _activeProfileId = 'p_default';
 
   double _fundLilTreat = 0;
   double _fundFunPurchase = 0;
@@ -49,14 +53,20 @@ class _HabitHomeState extends State<HabitHome> {
   }
 
   Future<void> _loadAll() async {
-    final habits = await _storage.loadHabits();
-    final logs = await _storage.loadLogs();
+    final profiles = await _storage.loadProfiles();
+    final activeId = await _storage.loadActiveProfileId();
 
-    final lil = await _storage.loadFund(FundType.lilTreat);
-    final fun = await _storage.loadFund(FundType.funPurchase);
-    final sav = await _storage.loadFund(FundType.saver);
+    final habits = await _storage.loadHabits(activeId);
+    final logs = await _storage.loadLogs(activeId);
+
+    final lil = await _storage.loadFund(activeId, FundType.lilTreat);
+    final fun = await _storage.loadFund(activeId, FundType.funPurchase);
+    final sav = await _storage.loadFund(activeId, FundType.saver);
 
     setState(() {
+      _profiles = profiles;
+      _activeProfileId = activeId;
+
       _habits
         ..clear()
         ..addAll(habits);
@@ -72,6 +82,13 @@ class _HabitHomeState extends State<HabitHome> {
       _loading = false;
     });
   }
+
+  // Profile? get _activeProfile {
+  //   for (final p in _profiles) {
+  //     if (p.id == _activeProfileId) return p;
+  //   }
+  //   return _profiles.isNotEmpty ? _profiles.first : null;
+  // }
 
   DayLog _currentLog() {
     return _logsByDate.putIfAbsent(_selectedDateKey, () => DayLog(dateKey: _selectedDateKey));
@@ -112,6 +129,57 @@ class _HabitHomeState extends State<HabitHome> {
     }
   }
 
+  Future<String?> _promptForProfileName(BuildContext context) async {
+    final ctrl = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('New profile'),
+        content: TextField(
+          controller: ctrl,
+          decoration: const InputDecoration(
+            hintText: 'name (e.g. zarin, roommate)',
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('cancel')),
+          FilledButton(
+            onPressed: () {
+              final name = ctrl.text.trim();
+              Navigator.pop(context, name.isEmpty ? null : name);
+            },
+            child: const Text('create'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _switchProfile(String id) async {
+    setState(() => _loading = true);
+    await _storage.setActiveProfileId(id);
+
+    // optional: reset date when swapping people
+    _selectedDateKey = _todayKey();
+
+    await _loadAll();
+  }
+
+  Future<void> _addProfile() async {
+    final name = await _promptForProfileName(context);
+    if (name == null) return;
+
+    final newProfile = Profile(
+      id: 'p_${DateTime.now().microsecondsSinceEpoch}',
+      name: name,
+    );
+
+    final updated = [..._profiles, newProfile];
+    await _storage.saveProfiles(updated);
+    await _switchProfile(newProfile.id);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -125,7 +193,7 @@ class _HabitHomeState extends State<HabitHome> {
         habits: _habits,
         onChanged: () async {
           setState(() {});
-          await _storage.saveHabits(_habits);
+          await _storage.saveHabits(_activeProfileId, _habits);
         },
         onDeleteHabit: (id) async {
           setState(() {
@@ -134,8 +202,8 @@ class _HabitHomeState extends State<HabitHome> {
               log.completedHabitIds.remove(id);
             }
           });
-          await _storage.saveHabits(_habits);
-          await _storage.saveLogs(_logsByDate);
+          await _storage.saveHabits(_activeProfileId, _habits);
+          await _storage.saveLogs(_activeProfileId, _logsByDate);
         },
       ),
       DailyPage(
@@ -153,30 +221,60 @@ class _HabitHomeState extends State<HabitHome> {
               log.completedHabitIds.remove(habitId);
             }
           });
-          await _storage.saveLogs(_logsByDate);
+          await _storage.saveLogs(_activeProfileId, _logsByDate);
         },
         onNoteChanged: (text) async {
           final log = _currentLog();
           setState(() => log.note = text);
-          await _storage.saveLogs(_logsByDate);
+          await _storage.saveLogs(_activeProfileId, _logsByDate);
         },
         onDeposit: (fund, amount) async {
           setState(() => _setFundValue(fund, _fundValue(fund) + amount));
-          await _storage.saveFund(fund, _fundValue(fund));
+          await _storage.saveFund(_activeProfileId, fund, _fundValue(fund));
         },
       ),
       FundsPage(
         fundValue: (t) => _fundValue(t),
         onAdjust: (t, delta) async {
           setState(() => _setFundValue(t, (_fundValue(t) + delta).clamp(0, 1e12)));
-          await _storage.saveFund(t, _fundValue(t));
+          await _storage.saveFund(_activeProfileId, t, _fundValue(t));
         },
       ),
     ];
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("the ultimate habit system"),
+        title: Row(
+          children: [
+            const Text("the ultimate habit system"),
+            const SizedBox(width: 12),
+            if (_profiles.isNotEmpty)
+              DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _activeProfileId,
+                  items: _profiles
+                      .map(
+                        (p) => DropdownMenuItem(
+                          value: p.id,
+                          child: Text('👤 ${p.name}'),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (id) {
+                    if (id == null) return;
+                    _switchProfile(id);
+                  },
+                ),
+              ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'add profile',
+            icon: const Icon(Icons.person_add_alt_1),
+            onPressed: _addProfile,
+          ),
+        ],
         centerTitle: false,
         foregroundColor: Colors.white,
         backgroundColor: Colors.transparent,

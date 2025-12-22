@@ -9,7 +9,7 @@ class PointMenuPage extends StatelessWidget {
   final VoidCallback onChanged;
   final Future<void> Function(String habitId) onDeleteHabit;
 
-  const PointMenuPage({
+  const PointMenuPage({super.key, 
     required this.habits,
     required this.onChanged,
     required this.onDeleteHabit,
