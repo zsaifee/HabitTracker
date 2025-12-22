@@ -235,7 +235,6 @@ class _DailyPageState extends State<DailyPage> {
         onPressed: amount <= 0
             ? null
             : () async {
-                // ✅ OPTION A: capture BEFORE await
                 final messenger = ScaffoldMessenger.of(context);
 
                 await widget.onDeposit(fund, amount);
