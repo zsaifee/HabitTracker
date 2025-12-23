@@ -12,7 +12,7 @@ class HabitApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: "the ultimate habit system",
+      title: "the habit bank",
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
@@ -21,7 +21,7 @@ class HabitApp extends StatelessWidget {
         ).copyWith(
           primary: AppStyle.primary,
           secondary: AppStyle.secondary,
-          tertiary: AppStyle.tertiary,
+          tertiary: AppStyle.bg,
           surface: Colors.white,
         ),
         scaffoldBackgroundColor: AppStyle.bg,
