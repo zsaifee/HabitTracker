@@ -1,13 +1,1 @@
-{
-  "hosting": {
-    "source": ".",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
-    "frameworksBackend": {
-      "region": "us-east1"
-    }
-  }
-}
+{"hosting":{"source":".","ignore":["firebase.json","**/.*","**/node_modules/**"],"frameworksBackend":{"region":"us-east1"}},"flutter":{"platforms":{"android":{"default":{"projectId":"habit-tracker-f20a4","appId":"1:871883074972:android:5ae9e23a3ee8aaa84a2c59","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"habit-tracker-f20a4","configurations":{"android":"1:871883074972:android:5ae9e23a3ee8aaa84a2c59","ios":"1:871883074972:ios:37494b341b7197a74a2c59","macos":"1:871883074972:ios:37494b341b7197a74a2c59","web":"1:871883074972:web:7f46b14f3ca210974a2c59","windows":"1:871883074972:web:b507b888455a53134a2c59"}}}}}}

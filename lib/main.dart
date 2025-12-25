@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'app_style.dart';
 import 'home_shell.dart';
+import 'login.dart';
 
-void main() {
+void main() async{
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options:DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const HabitApp());
 }
 
@@ -64,13 +72,25 @@ class HabitApp extends StatelessWidget {
           ),
         ),
 
-        // A lil more playful typography
         textTheme: const TextTheme(
           titleLarge: TextStyle(fontWeight: FontWeight.w800),
           titleMedium: TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
-      home: const HabitHome(),
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if(snapshot.connectionState == ConnectionState.waiting){
+            return const Scaffold(
+              body: Center (child: CircularProgressIndicator()),
+            );
+          }
+          if(snapshot.hasData){
+            return const HabitHome();
+          }
+          return const LoginScreen();
+        }
+      )
     );
   }
 }
