@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'app_style.dart';
 import 'habit.dart';
@@ -166,26 +167,23 @@ class _HabitHomeState extends State<HabitHome> {
             }
           });
           await _storage.saveLogs(_logsByDate);
-          // Better later: await _storage.upsertDayLog(log); (single doc write)
         },
         onNoteChanged: (text) async {
           final log = _currentLog();
           setState(() => log.note = text);
           await _storage.saveLogs(_logsByDate);
-          // Better later: await _storage.upsertDayLog(log);
         },
         onDeposit: (fund, amount) async {
           setState(() => _setFundValue(fund, _fundValue(fund) + amount));
           await _storage.saveFund(fund, _fundValue(fund));
-          // Or atomic: await _storage.incrementFund(fund, amount);
         },
       ),
       FundsPage(
         fundValue: (t) => _fundValue(t),
         onAdjust: (t, delta) async {
-          setState(() => _setFundValue(t, (_fundValue(t) + delta).clamp(0, 1e12)));
+          setState(() =>
+              _setFundValue(t, (_fundValue(t) + delta).clamp(0, 1e12)));
           await _storage.saveFund(t, _fundValue(t));
-          // Or atomic: await _storage.incrementFund(t, delta);
         },
       ),
     ];
@@ -202,6 +200,15 @@ class _HabitHomeState extends State<HabitHome> {
             gradient: AppStyle.headerGradient(context),
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Sign out',
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+            },
+          ),
+        ],
       ),
       body: pages[_tabIndex],
       bottomNavigationBar: NavigationBar(

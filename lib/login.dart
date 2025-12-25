@@ -278,7 +278,7 @@ class _Header extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          isLogin ? 'Log in to keep your streaks safe ✨' : 'Create an account to start saving points ✨',
+          isLogin ? 'Log in to keep your streaks safe ' : 'Create an account to start saving points ',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
         ),
