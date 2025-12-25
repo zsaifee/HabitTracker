@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import 'app_style.dart';
 import 'habit.dart';
@@ -7,7 +8,7 @@ import 'day_log.dart';
 
 class DailyPage extends StatefulWidget {
   final List<Habit> habits;
-  final String dateKey;
+  final String dateKey; // yyyy-MM-dd
   final void Function(String newDateKey) onPickDate;
 
   final DayLog log;
@@ -50,6 +51,7 @@ class _DailyPageState extends State<DailyPage> {
   void didUpdateWidget(covariant DailyPage oldWidget) {
     super.didUpdateWidget(oldWidget);
 
+    // When date changes, update the note field to match the new day's log.
     if (oldWidget.dateKey != widget.dateKey) {
       final newText = widget.log.note;
       if (_noteCtrl.text != newText) {
@@ -65,6 +67,12 @@ class _DailyPageState extends State<DailyPage> {
   void dispose() {
     _noteCtrl.dispose();
     super.dispose();
+  }
+
+  // Display: "tue, dec 2" (lowercase)
+  String _formattedDate(String dateKey) {
+    final date = DateTime.parse(dateKey); // expects yyyy-MM-dd
+    return DateFormat('EEE, MMM d').format(date).toLowerCase();
   }
 
   @override
@@ -156,12 +164,10 @@ class _DailyPageState extends State<DailyPage> {
             const Text('habits completed'),
             const SizedBox(height: 8),
             ...widget.habits.map((h) {
-              final checked =
-                  widget.log.completedHabitIds.contains(h.id);
+              final checked = widget.log.completedHabitIds.contains(h.id);
               return CheckboxListTile(
                 value: checked,
-                onChanged: (v) =>
-                    widget.onToggleHabit(h.id, v ?? false),
+                onChanged: (v) => widget.onToggleHabit(h.id, v ?? false),
                 title: Text(h.isExercise ? '🏃 ${h.name}' : h.name),
                 subtitle: Text(
                   '${h.points} pts${h.isExercise ? ' • exercise' : ''}',
@@ -261,7 +267,7 @@ class _DailyPageState extends State<DailyPage> {
     return Row(
       children: [
         Text(
-          widget.dateKey,
+          _formattedDate(widget.dateKey),
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w800,
@@ -271,8 +277,7 @@ class _DailyPageState extends State<DailyPage> {
         OutlinedButton.icon(
           onPressed: () async {
             final now = DateTime.now();
-            final initial =
-                DateTime.tryParse(widget.dateKey) ?? now;
+            final initial = DateTime.tryParse(widget.dateKey) ?? now;
 
             final picked = await showDatePicker(
               context: context,
