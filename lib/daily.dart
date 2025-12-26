@@ -1,3 +1,4 @@
+// daily.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -216,7 +217,7 @@ class _DailyPageState extends State<DailyPage> {
             const Text(
               '• v1 uses 1 point = \$1\n'
               '• you can add multipliers/bonuses later\n'
-              '• funds live in your browser storage',
+              '• data is saved to your account',
             ),
           ],
         ),

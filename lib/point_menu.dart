@@ -1,15 +1,15 @@
+// point_menu.dart
 import 'package:flutter/material.dart';
 import 'app_style.dart';
 import 'habit.dart';
 
-
-
 class PointMenuPage extends StatelessWidget {
   final List<Habit> habits;
-  final VoidCallback onChanged;
+  final Future<void> Function() onChanged; // changed: async so parent can persist
   final Future<void> Function(String habitId) onDeleteHabit;
 
-  const PointMenuPage({super.key, 
+  const PointMenuPage({
+    super.key,
     required this.habits,
     required this.onChanged,
     required this.onDeleteHabit,
@@ -33,7 +33,9 @@ class PointMenuPage extends StatelessWidget {
             const SizedBox(height: 8),
             const Align(
               alignment: Alignment.centerLeft,
-              child: Text('Set point values for habits + exercise based on what motivates you right now.'),
+              child: Text(
+                'Set point values for habits + exercise based on what motivates you right now.',
+              ),
             ),
             const SizedBox(height: 16),
             Expanded(
@@ -50,7 +52,8 @@ class PointMenuPage extends StatelessWidget {
                         [
                           '${h.points} pts',
                           if (h.isExercise) 'exercise',
-                          if ((h.reasoning ?? '').trim().isNotEmpty) '“${h.reasoning}”',
+                          if ((h.reasoning ?? '').trim().isNotEmpty)
+                            '“${h.reasoning}”',
                         ].join(' • '),
                       ),
                       trailing: Wrap(
@@ -60,7 +63,7 @@ class PointMenuPage extends StatelessWidget {
                             tooltip: 'edit',
                             onPressed: () async {
                               await _editHabitDialog(context, h);
-                              onChanged();
+                              await onChanged();
                             },
                             icon: const Icon(Icons.edit),
                           ),
@@ -74,20 +77,22 @@ class PointMenuPage extends StatelessWidget {
                                   content: Text('Delete “${h.name}” everywhere?'),
                                   actions: [
                                     TextButton(
-                                      onPressed: () => Navigator.pop(context, false),
+                                      onPressed: () =>
+                                          Navigator.pop(context, false),
                                       child: const Text('Cancel'),
                                     ),
                                     FilledButton(
-                                      onPressed: () => Navigator.pop(context, true),
+                                      onPressed: () =>
+                                          Navigator.pop(context, true),
                                       child: const Text('Delete'),
                                     ),
                                   ],
                                 ),
                               );
+
                               if (ok == true) {
+                                // Parent owns the source of truth + persistence.
                                 await onDeleteHabit(h.id);
-                                habits.removeWhere((x) => x.id == h.id); 
-                                onChanged(); 
                               }
                             },
                             icon: const Icon(Icons.delete_outline),
@@ -109,9 +114,11 @@ class PointMenuPage extends StatelessWidget {
                     name: 'new habit',
                     points: 1,
                   );
+
+                  // Mutate list, then persist via parent callback.
                   habits.add(newHabit);
                   await _editHabitDialog(context, newHabit);
-                  onChanged();
+                  await onChanged();
                 },
                 icon: const Icon(Icons.add),
                 label: const Text('add habit'),
@@ -149,7 +156,8 @@ class PointMenuPage extends StatelessWidget {
               ),
               TextField(
                 controller: reasonCtrl,
-                decoration: const InputDecoration(labelText: 'reasoning (optional)'),
+                decoration:
+                    const InputDecoration(labelText: 'reasoning (optional)'),
               ),
               const SizedBox(height: 8),
               SwitchListTile(
@@ -162,15 +170,20 @@ class PointMenuPage extends StatelessWidget {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('done')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('done'),
+          ),
         ],
       ),
     );
 
-    habit.name = nameCtrl.text.trim().isEmpty ? habit.name : nameCtrl.text.trim();
+    habit.name =
+        nameCtrl.text.trim().isEmpty ? habit.name : nameCtrl.text.trim();
     final parsed = int.tryParse(ptsCtrl.text.trim());
     if (parsed != null) habit.points = parsed;
-    habit.reasoning = reasonCtrl.text.trim().isEmpty ? null : reasonCtrl.text.trim();
+    habit.reasoning =
+        reasonCtrl.text.trim().isEmpty ? null : reasonCtrl.text.trim();
     habit.isExercise = isExercise;
   }
 }

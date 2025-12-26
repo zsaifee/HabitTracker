@@ -1,3 +1,4 @@
+// home_shell.dart (your HabitHome page)
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -31,7 +32,6 @@ class _HabitHomeState extends State<HabitHome> {
   double _fundSaver = 0;
 
   String _selectedDateKey = _todayKey();
-
   bool _loading = true;
 
   @override
@@ -76,11 +76,47 @@ class _HabitHomeState extends State<HabitHome> {
 
         _loading = false;
       });
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       setState(() => _loading = false);
       rethrow;
     }
+  }
+
+  // Persist habits in a way that matches the list exactly (handles deletions)
+  Future<void> _persistHabits() async {
+    await _storage.replaceHabits(_habits);
+  }
+
+  // Persist all logs
+  Future<void> _persistLogs() async {
+    await _storage.saveLogs(_logsByDate);
+  }
+
+  // Called after edits/adds in point menu
+  Future<void> _onHabitsChanged() async {
+    if (!mounted) return;
+    setState(() {});
+    await _persistHabits();
+  }
+
+  // The only delete path. This is what PointMenuPage calls.
+  Future<void> _deleteHabit(String id) async {
+    // 1) delete habit doc + remove id from completedHabitIds in every log
+    await _storage.deleteHabitEverywhere(id);
+
+    // 2) update in-memory state
+    if (!mounted) return;
+    setState(() {
+      _habits.removeWhere((h) => h.id == id);
+      for (final log in _logsByDate.values) {
+        log.completedHabitIds.remove(id);
+      }
+    });
+
+    // 3) keep Firestore habits collection exactly matching list
+    // (this prevents “resurrection” even if something saves later)
+    await _persistHabits();
   }
 
   DayLog _currentLog() {
@@ -136,20 +172,8 @@ class _HabitHomeState extends State<HabitHome> {
     final pages = [
       PointMenuPage(
         habits: _habits,
-        onChanged: () async {
-          setState(() {});
-          await _storage.saveHabits(_habits);
-        },
-        onDeleteHabit: (id) async {
-          setState(() {
-            _habits.removeWhere((h) => h.id == id);
-            for (final log in _logsByDate.values) {
-              log.completedHabitIds.remove(id);
-            }
-          });
-          await _storage.saveHabits(_habits);
-          await _storage.saveLogs(_logsByDate);
-        },
+        onChanged: _onHabitsChanged,
+        onDeleteHabit: _deleteHabit,
       ),
       DailyPage(
         habits: _habits,
@@ -166,12 +190,12 @@ class _HabitHomeState extends State<HabitHome> {
               log.completedHabitIds.remove(habitId);
             }
           });
-          await _storage.saveLogs(_logsByDate);
+          await _persistLogs();
         },
         onNoteChanged: (text) async {
           final log = _currentLog();
           setState(() => log.note = text);
-          await _storage.saveLogs(_logsByDate);
+          await _persistLogs();
         },
         onDeposit: (fund, amount) async {
           setState(() => _setFundValue(fund, _fundValue(fund) + amount));
