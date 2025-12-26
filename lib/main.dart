@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+
 import 'firebase_options.dart';
 import 'app_style.dart';
 import 'home_shell.dart';
@@ -80,17 +81,30 @@ class HabitApp extends StatelessWidget {
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
-          if(snapshot.connectionState == ConnectionState.waiting){
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Scaffold(
-              body: Center (child: CircularProgressIndicator()),
+            body: Center(child: CircularProgressIndicator()),
             );
           }
-          if(snapshot.hasData){
-            return const HabitHome();
+
+          final user = snapshot.data;
+
+          // Not signed in
+          if (user == null) return const LoginScreen();
+
+          // Allow anonymous guest to proceed
+          if (user.isAnonymous) return const HabitHome();
+
+          // For email/password users: require email verification
+          if (!user.emailVerified) {
+            return const LoginScreen(); // stays on login so they see the message
+            // (Optionally: return a dedicated VerifyEmailScreen instead)
           }
-          return const LoginScreen();
-        }
-      )
+
+        // Verified user
+        return const HabitHome();
+        },
+      ),
     );
   }
 }

@@ -60,6 +60,23 @@ class StorageService {
     await batch.commit();
   }
 
+
+  Future<void> deleteHabitEverywhere(String habitId) async {
+    await _habitsCol().doc(habitId).delete();
+
+    final logsSnap = await _logsCol().get();
+    final batch = _db.batch();
+
+    for (final doc in logsSnap.docs) {
+      batch.update(doc.reference, {
+        'completedHabitIds': FieldValue.arrayRemove([habitId]),
+      });
+    }
+
+    await batch.commit();
+  }
+
+
   // Optional helper if you ever want deletions to be reflected:
   Future<void> replaceHabits(List<Habit> habits) async {
     final existing = await _habitsCol().get();

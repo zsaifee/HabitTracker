@@ -3,42 +3,62 @@ import 'package:firebase_auth/firebase_auth.dart';
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // Get current user
   User? get currentUser => _auth.currentUser;
-
-  // Auth state changes stream
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  // Sign up with email & password
-  Future<UserCredential?> signUp(String email, String password) async {
+  // Sign up with email & password + send verification email
+  Future<void> signUp(String email, String password) async {
     try {
-      return await _auth.createUserWithEmailAndPassword(
+      final cred = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-    } catch (e) {
-      // print('Sign up error: $e');
-      // return null;
+
+      await cred.user!.sendEmailVerification();
+
+      // Optional but recommended: sign out so they must verify before using the app
+      await _auth.signOut();
+    } on FirebaseAuthException {
+      rethrow;
+    } catch (_) {
       rethrow;
     }
   }
 
-  // Sign in with email & password
-  Future<UserCredential?> signIn(String email, String password) async {
+  // Sign in but block until verified
+  Future<void> signIn(String email, String password) async {
     try {
-      return await _auth.signInWithEmailAndPassword(
+      final cred = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-    } catch (e) {
-      // print('Sign in error: $e');
-      // return null;
+
+      // Refresh user to get latest emailVerified state
+      await cred.user!.reload();
+      final user = _auth.currentUser;
+
+      if (user != null && !user.emailVerified) {
+        await _auth.signOut();
+        throw FirebaseAuthException(
+          code: 'email-not-verified',
+          message: 'Verify your email before logging in. Check your inbox.',
+        );
+      }
+    } on FirebaseAuthException {
+      rethrow;
+    } catch (_) {
       rethrow;
     }
   }
 
-  // Sign out
-  Future<void> signOut() async {
-    await _auth.signOut();
+  Future<void> resendVerificationEmail() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw FirebaseAuthException(code: 'no-user', message: 'No user is signed in.');
+    }
+    if (user.emailVerified) return;
+    await user.sendEmailVerification();
   }
+
+  Future<void> signOut() async => _auth.signOut();
 }

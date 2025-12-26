@@ -86,6 +86,8 @@ class PointMenuPage extends StatelessWidget {
                               );
                               if (ok == true) {
                                 await onDeleteHabit(h.id);
+                                habits.removeWhere((x) => x.id == h.id); 
+                                onChanged(); 
                               }
                             },
                             icon: const Icon(Icons.delete_outline),

@@ -1,7 +1,10 @@
+// lib/login.dart
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'app_style.dart';
+import 'services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,12 +14,15 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final AuthService _authSvc = AuthService();
+
   final _emailCtrl = TextEditingController();
   final _pwCtrl = TextEditingController();
 
   bool _isLogin = true;
   bool _busy = false;
   String? _err;
+  String? _info; // ✅ NEW: success/info message
 
   @override
   void dispose() {
@@ -29,6 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() {
       _busy = true;
       _err = null;
+      _info = null; // clear info each submit
     });
 
     try {
@@ -43,19 +50,29 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       if (_isLogin) {
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: email,
-          password: pw,
-        );
-      } else {
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: email,
-          password: pw,
-        );
-      }
+        await _authSvc.signIn(email, pw);
 
-      if (!mounted) return;
-      FocusScope.of(context).unfocus();
+        if (!mounted) return;
+        FocusScope.of(context).unfocus();
+      } else {
+        await _authSvc.signUp(email, pw);
+
+        if (!mounted) return;
+
+        FocusScope.of(context).unfocus();
+
+        setState(() {
+          _info = 'Verification email sent to $email. Check inbox , then log in.';
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Verification email sent to $email.'),
+          ),
+        );
+
+        return; // stop here so we don’t “continue” as logged-in
+      }
     } on FirebaseAuthException catch (e) {
       setState(() {
         _err = _prettyAuthError(e);
@@ -74,6 +91,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _forgotPassword() async {
     setState(() {
       _err = null;
+      _info = null;
       _busy = true;
     });
 
@@ -89,6 +107,27 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Password reset email sent.')),
+      );
+    } on FirebaseAuthException catch (e) {
+      setState(() => _err = _prettyAuthError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _resendVerification() async {
+    setState(() {
+      _err = null;
+      _info = null;
+      _busy = true;
+    });
+
+    try {
+      await _authSvc.resendVerificationEmail();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Verification email resent.')),
       );
     } on FirebaseAuthException catch (e) {
       setState(() => _err = _prettyAuthError(e));
@@ -118,6 +157,10 @@ class _LoginScreenState extends State<LoginScreen> {
         return 'Network error. Check your connection.';
       case 'invalid-input':
         return e.message ?? 'Missing email/password.';
+      case 'email-not-verified':
+        return 'Please verify your email (check inbox/spam) before logging in.';
+      case 'no-user':
+        return 'No signed-in user.';
       default:
         return e.message ?? 'Auth error: ${e.code}';
     }
@@ -155,6 +198,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           const SizedBox(height: 12),
+
                           TextField(
                             controller: _pwCtrl,
                             obscureText: true,
@@ -185,11 +229,19 @@ class _LoginScreenState extends State<LoginScreen> {
                                     : () => setState(() {
                                           _isLogin = !_isLogin;
                                           _err = null;
+                                          _info = null;
                                         }),
                               ),
                             ],
                           ),
 
+                          // ✅ Info banner
+                          if (_info != null) ...[
+                            const SizedBox(height: 6),
+                            _InfoPill(message: _info!),
+                          ],
+
+                          // Error banner
                           if (_err != null) ...[
                             const SizedBox(height: 6),
                             _ErrorPill(message: _err!),
@@ -208,6 +260,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                 : Text(_isLogin ? 'Log in' : 'Create account'),
                           ),
 
+                          if (_isLogin) ...[
+                            const SizedBox(height: 6),
+                            TextButton(
+                              onPressed: _busy ? null : _resendVerification,
+                              child: const Text('Resend verification email'),
+                            ),
+                          ],
+
                           const SizedBox(height: 10),
 
                           OutlinedButton.icon(
@@ -217,6 +277,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     setState(() {
                                       _busy = true;
                                       _err = null;
+                                      _info = null;
                                     });
                                     try {
                                       await FirebaseAuth.instance.signInAnonymously();
@@ -315,6 +376,35 @@ class _ModeChip extends StatelessWidget {
             Text(action, style: const TextStyle(fontWeight: FontWeight.w800, color: AppStyle.primary)),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _InfoPill extends StatelessWidget {
+  final String message;
+  const _InfoPill({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8F4FF),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFB6DAFF)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.mark_email_read_outlined, color: Color(0xFF0B57D0)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF0B57D0)),
+            ),
+          ),
+        ],
       ),
     );
   }
