@@ -9,62 +9,139 @@ class StorageService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  String _uid() {
-    final u = _auth.currentUser;
-    if (u == null) {
-      throw StateError('Not signed in. currentUser is null.');
-    }
-    return u.uid;
+  // -------------------------
+  // Auth / base refs
+  // -------------------------
+  Future<String> _uid() async {
+    final current = _auth.currentUser;
+    if (current != null) return current.uid;
+
+    final cred = await _auth.signInAnonymously();
+    return cred.user!.uid;
   }
 
-  DocumentReference<Map<String, dynamic>> _userDoc() =>
-      _db.collection('users').doc(_uid());
+  Future<DocumentReference<Map<String, dynamic>>> _userDoc() async {
+    final uid = await _uid();
+    return _db.collection('users').doc(uid);
+  }
 
-  CollectionReference<Map<String, dynamic>> _habitsCol() =>
-      _userDoc().collection('habits');
+  Future<CollectionReference<Map<String, dynamic>>> _habitsCol() async {
+    final user = await _userDoc();
+    return user.collection('habits');
+  }
 
-  CollectionReference<Map<String, dynamic>> _logsCol() =>
-      _userDoc().collection('dayLogs');
+  Future<CollectionReference<Map<String, dynamic>>> _logsCol() async {
+    final user = await _userDoc();
+    return user.collection('dayLogs');
+  }
 
-  DocumentReference<Map<String, dynamic>> _fundsDoc() =>
-      _userDoc().collection('funds').doc('main');
+  Future<DocumentReference<Map<String, dynamic>>> _fundsDoc() async {
+    final user = await _userDoc();
+    return user.collection('funds').doc('main');
+  }
+
+  // -------------------------
+  // Onboarding (V2 setup flow)
+  // -------------------------
+  Future<void> ensureUserInitialized() async {
+    final doc = await _userDoc();
+    final snap = await doc.get();
+
+    if (!snap.exists) {
+      await doc.set({
+        'createdAt': FieldValue.serverTimestamp(),
+        'onboardingDone': false,
+      }, SetOptions(merge: true));
+      return;
+    }
+
+    final data = snap.data();
+    if (data == null || !data.containsKey('onboardingDone')) {
+      await doc.set({'onboardingDone': false}, SetOptions(merge: true));
+    }
+  }
+
+  Future<bool> getOnboardingDone() async {
+    final doc = await _userDoc();
+    final snap = await doc.get();
+    final data = snap.data();
+    return (data?['onboardingDone'] as bool?) ?? false;
+  }
+
+  Future<void> setOnboardingDone(bool done) async {
+    final doc = await _userDoc();
+    await doc.set({'onboardingDone': done}, SetOptions(merge: true));
+  }
+
+  Future<void> setWishlistItems(List<Map<String, dynamic>> items) async {
+    final doc = await _userDoc();
+    await doc.set({'wishlist': items}, SetOptions(merge: true));
+  }
+
+  /// Creates the first habit from onboarding.
+  /// NOTE: Your Habit model does not currently have fundType, so we store fundTypeKey in `reasoning`
+  /// as a lightweight workaround. If you later add a real field, we can migrate it cleanly.
+  Future<void> createHabitFromOnboarding({
+    required String name,
+    required String fundTypeKey, // "lilTreat" or "funPurchase"
+    required double value,
+  }) async {
+    final habits = await _habitsCol();
+
+    // Your Habit uses int points. Onboarding value is dollars (double).
+    // Best simple mapping: round to nearest int, min 0.
+    final points = value.isNaN ? 0 : value.round().clamp(0, 999999);
+
+    final id = habits.doc().id;
+
+    final habit = Habit(
+      id: id,
+      name: name.trim(),
+      points: points,
+      reasoning: 'fund:$fundTypeKey',
+    );
+
+    await habits.doc(id).set(habit.toJson(), SetOptions(merge: true));
+  }
 
   // -------------------------
   // Habits (per user)
   // -------------------------
   Future<List<Habit>> loadHabits() async {
-    final snap = await _habitsCol().get();
+    final habits = await _habitsCol();
+    final snap = await habits.get();
 
     if (snap.docs.isEmpty) {
       // seed defaults on first run for this account
       final seeded = _seedHabits();
       final batch = _db.batch();
       for (final h in seeded) {
-        batch.set(_habitsCol().doc(h.id), h.toJson());
+        batch.set(habits.doc(h.id), h.toJson());
       }
       await batch.commit();
       return seeded;
     }
 
-    return snap.docs
-        .map((d) => Habit.fromJson(d.data()))
-        .toList();
+    return snap.docs.map((d) => Habit.fromJson(d.data())).toList();
   }
 
-  Future<void> saveHabits(List<Habit> habits) async {
+  Future<void> saveHabits(List<Habit> habitsList) async {
     // Upsert everything you pass in. (Does not delete missing habits.)
+    final habits = await _habitsCol();
     final batch = _db.batch();
-    for (final h in habits) {
-      batch.set(_habitsCol().doc(h.id), h.toJson(), SetOptions(merge: true));
+    for (final h in habitsList) {
+      batch.set(habits.doc(h.id), h.toJson(), SetOptions(merge: true));
     }
     await batch.commit();
   }
 
-
   Future<void> deleteHabitEverywhere(String habitId) async {
-    await _habitsCol().doc(habitId).delete();
+    final habits = await _habitsCol();
+    final logs = await _logsCol();
 
-    final logsSnap = await _logsCol().get();
+    await habits.doc(habitId).delete();
+
+    final logsSnap = await logs.get();
     final batch = _db.batch();
 
     for (final doc in logsSnap.docs) {
@@ -76,11 +153,10 @@ class StorageService {
     await batch.commit();
   }
 
-
-  // Optional helper if you ever want deletions to be reflected:
-  Future<void> replaceHabits(List<Habit> habits) async {
-    final existing = await _habitsCol().get();
-    final keepIds = habits.map((h) => h.id).toSet();
+  Future<void> replaceHabits(List<Habit> habitsList) async {
+    final habits = await _habitsCol();
+    final existing = await habits.get();
+    final keepIds = habitsList.map((h) => h.id).toSet();
 
     final batch = _db.batch();
 
@@ -92,8 +168,8 @@ class StorageService {
     }
 
     // upsert new list
-    for (final h in habits) {
-      batch.set(_habitsCol().doc(h.id), h.toJson(), SetOptions(merge: true));
+    for (final h in habitsList) {
+      batch.set(habits.doc(h.id), h.toJson(), SetOptions(merge: true));
     }
 
     await batch.commit();
@@ -103,8 +179,10 @@ class StorageService {
   // Logs (per user)
   // -------------------------
   Future<Map<String, DayLog>> loadLogs() async {
-    final snap = await _logsCol().get();
+    final logs = await _logsCol();
+    final snap = await logs.get();
     final out = <String, DayLog>{};
+
     for (final d in snap.docs) {
       final log = DayLog.fromJson(d.data());
       out[log.dateKey] = log;
@@ -113,39 +191,43 @@ class StorageService {
   }
 
   Future<void> saveLogs(Map<String, DayLog> logsByDate) async {
-    // Same semantics as before: write the whole map you give me.
-    // Writes each DayLog as its own doc (id = dateKey).
+    final logs = await _logsCol();
     final batch = _db.batch();
+
     logsByDate.forEach((dateKey, log) {
-      batch.set(_logsCol().doc(dateKey), log.toJson(), SetOptions(merge: true));
+      batch.set(logs.doc(dateKey), log.toJson(), SetOptions(merge: true));
     });
+
     await batch.commit();
   }
 
-  // Recommended: targeted writes so you don't rewrite all logs each time.
   Future<void> upsertDayLog(DayLog log) async {
-    await _logsCol().doc(log.dateKey).set(log.toJson(), SetOptions(merge: true));
+    final logs = await _logsCol();
+    await logs.doc(log.dateKey).set(log.toJson(), SetOptions(merge: true));
   }
 
   // -------------------------
   // Funds (per user)
   // -------------------------
   Future<double> loadFund(FundType t) async {
-    final snap = await _fundsDoc().get();
+    final funds = await _fundsDoc();
+    final snap = await funds.get();
     final data = snap.data();
     if (data == null) return 0;
+
     final v = data[t.key];
     if (v is num) return v.toDouble();
     return 0;
   }
 
   Future<void> saveFund(FundType t, double value) async {
-    await _fundsDoc().set({t.key: value}, SetOptions(merge: true));
+    final funds = await _fundsDoc();
+    await funds.set({t.key: value}, SetOptions(merge: true));
   }
 
-  // Optional convenience: atomic increment (safer than read-modify-write)
   Future<void> incrementFund(FundType t, double delta) async {
-    await _fundsDoc().set(
+    final funds = await _fundsDoc();
+    await funds.set(
       {t.key: FieldValue.increment(delta)},
       SetOptions(merge: true),
     );

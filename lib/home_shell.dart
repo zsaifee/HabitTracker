@@ -12,6 +12,10 @@ import 'daily.dart';
 import 'funds.dart';
 import 'storage_service.dart';
 
+import 'dialogue.dart';
+
+
+
 class HabitHome extends StatefulWidget {
   const HabitHome({super.key});
 
@@ -25,8 +29,7 @@ class _HabitHomeState extends State<HabitHome> {
   int _tabIndex = 0;
 
   final List<Habit> _habits = [];
-  final Map<String, DayLog> _logsByDate = {}; // dateKey -> DayLog
-
+  final Map<String, DayLog> _logsByDate = {}; 
   double _fundLilTreat = 0;
   double _fundFunPurchase = 0;
   double _fundSaver = 0;
@@ -83,29 +86,23 @@ class _HabitHomeState extends State<HabitHome> {
     }
   }
 
-  // Persist habits in a way that matches the list exactly (handles deletions)
   Future<void> _persistHabits() async {
     await _storage.replaceHabits(_habits);
   }
 
-  // Persist all logs
   Future<void> _persistLogs() async {
     await _storage.saveLogs(_logsByDate);
   }
 
-  // Called after edits/adds in point menu
   Future<void> _onHabitsChanged() async {
     if (!mounted) return;
     setState(() {});
     await _persistHabits();
   }
 
-  // The only delete path. This is what PointMenuPage calls.
   Future<void> _deleteHabit(String id) async {
-    // 1) delete habit doc + remove id from completedHabitIds in every log
     await _storage.deleteHabitEverywhere(id);
 
-    // 2) update in-memory state
     if (!mounted) return;
     setState(() {
       _habits.removeWhere((h) => h.id == id);
@@ -113,9 +110,6 @@ class _HabitHomeState extends State<HabitHome> {
         log.completedHabitIds.remove(id);
       }
     });
-
-    // 3) keep Firestore habits collection exactly matching list
-    // (this prevents “resurrection” even if something saves later)
     await _persistHabits();
   }
 
@@ -212,6 +206,9 @@ class _HabitHomeState extends State<HabitHome> {
       ),
     ];
 
+    
+
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("the habit bank"),
@@ -232,7 +229,13 @@ class _HabitHomeState extends State<HabitHome> {
               await FirebaseAuth.instance.signOut();
             },
           ),
+          IconButton(
+            tooltip: "help",
+            icon: const Icon(Icons.help_outline), // ? in a circle
+            onPressed: () => helpDialog(context),
+          ),
         ],
+
       ),
       body: pages[_tabIndex],
       bottomNavigationBar: NavigationBar(
