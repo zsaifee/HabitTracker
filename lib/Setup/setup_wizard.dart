@@ -1,0 +1,326 @@
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../app_style.dart';
+import '../storage_service.dart';
+import '../category_type.dart';
+import '../behavior.dart';
+import '../goal.dart';
+
+class SetupWizard extends StatefulWidget {
+  final VoidCallback onDone;
+
+  const SetupWizard({super.key, required this.onDone});
+
+  @override
+  State<SetupWizard> createState() => _SetupWizardState();
+}
+
+class _SetupWizardState extends State<SetupWizard> {
+  final _storage = StorageService();
+
+  int _step = 0;
+  bool _busy = false;
+  String? _err;
+
+  // in-memory drafts
+  final Map<CategoryType, List<_BehaviorDraft>> _byCat = {
+    for (final c in CategoryType.values) c: <_BehaviorDraft>[],
+  };
+
+  final List<CategoryType> _setupCats = const [
+    CategoryType.feelGoodIrregular,
+    CategoryType.putOffTodos,
+    CategoryType.wantToStart,
+    CategoryType.wantToMaintain,
+    // keep goals separate if you want later
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('setup'),
+        foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        flexibleSpace: Container(decoration: BoxDecoration(gradient: AppStyle.headerGradient(context))),
+      ),
+      body: Container(
+        decoration: BoxDecoration(gradient: AppStyle.pageWash()),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: _body(),
+        ),
+      ),
+    );
+  }
+
+  Widget _body() {
+    if (_busy) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_err != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(_err!, style: const TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 12),
+          FilledButton(onPressed: () => setState(() => _err = null), child: const Text('back')),
+        ],
+      );
+    }
+
+    return Column(
+      children: [
+        Expanded(child: _stepView()),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            if (_step > 0)
+              TextButton(
+                onPressed: () => setState(() => _step--),
+                child: const Text('back'),
+              ),
+            const Spacer(),
+            FilledButton(
+              onPressed: _onNext,
+              child: Text(_step == 2 ? 'finish' : 'next'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _stepView() {
+    switch (_step) {
+      case 0:
+        return _intro();
+      case 1:
+        return _brainDump();
+      case 2:
+        return _rankAndFrequency();
+      default:
+        return _intro();
+    }
+  }
+
+  Widget _intro() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
+          Text('we’re going to set up your behavior categories', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          SizedBox(height: 10),
+          Text('1) brain dump behaviors into categories\n2) rank them inside each category\n3) choose a gentle frequency target\n\nnothing is permanent — this is just “right now”.'),
+        ]),
+      ),
+    );
+  }
+
+  Widget _brainDump() {
+    return ListView(
+      children: [
+        for (final c in _setupCats) ...[
+          _categoryCard(c),
+          const SizedBox(height: 12),
+        ],
+      ],
+    );
+  }
+
+  Widget _categoryCard(CategoryType c) {
+    final list = _byCat[c]!;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(c.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 6),
+            Text('Add behaviors in a “behavior lens” (ex: “strength exercise”, not “gym 2x/week”).',
+                style: TextStyle(color: Colors.black)),
+            const SizedBox(height: 10),
+            for (final b in list)
+              ListTile(
+                dense: true,
+                title: Text(b.name),
+                trailing: IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => setState(() => list.remove(b)),
+                ),
+              ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () async {
+                  final name = await _promptForText(title: 'add behavior', hint: 'ex: strength exercise');
+                  if (name == null || name.trim().isEmpty) return;
+                  setState(() => list.add(_BehaviorDraft(name.trim())));
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('add'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _rankAndFrequency() {
+    return ListView(
+      children: [
+        for (final c in _setupCats) ...[
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(c.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 6),
+                  Text('Ranking axis:\n${c.rankingPrompt}', style: TextStyle(color: Colors.black)),
+                  const SizedBox(height: 10),
+                  _reorderList(c),
+                  const SizedBox(height: 10),
+                  const Text('Frequency goal (per week):', style: TextStyle(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 6),
+                  _freqControls(c),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+      ],
+    );
+  }
+
+  Widget _reorderList(CategoryType c) {
+    final list = _byCat[c]!;
+    if (list.isEmpty) {
+      return Text('No behaviors added here.', style: TextStyle(color: Colors.black));
+    }
+
+    return ReorderableListView(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      onReorder: (oldIndex, newIndex) {
+        setState(() {
+          if (newIndex > oldIndex) newIndex -= 1;
+          final item = list.removeAt(oldIndex);
+          list.insert(newIndex, item);
+        });
+      },
+      children: [
+        for (int i = 0; i < list.length; i++)
+          ListTile(
+            key: ValueKey('${c.key}-$i-${list[i].name}'),
+            title: Text('${i + 1}. ${list[i].name}'),
+            leading: const Icon(Icons.drag_handle),
+          ),
+      ],
+    );
+  }
+
+  Widget _freqControls(CategoryType c) {
+    final list = _byCat[c]!;
+    if (list.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      children: [
+        for (final b in list)
+          Row(
+            children: [
+              Expanded(child: Text(b.name)),
+              IconButton(
+                onPressed: () => setState(() => b.freqPerWeek = (b.freqPerWeek - 1).clamp(0, 21)),
+                icon: const Icon(Icons.remove),
+              ),
+              Text('${b.freqPerWeek}', style: const TextStyle(fontWeight: FontWeight.w800)),
+              IconButton(
+                onPressed: () => setState(() => b.freqPerWeek = (b.freqPerWeek + 1).clamp(0, 21)),
+                icon: const Icon(Icons.add),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Future<void> _onNext() async {
+    if (_step < 2) {
+      setState(() => _step++);
+      return;
+    }
+
+    // finish
+    setState(() {
+      _busy = true;
+      _err = null;
+    });
+
+    try {
+      final behaviors = <Behavior>[];
+      final goals = <Goal>[];
+
+      for (final c in _setupCats) {
+        final list = _byCat[c]!;
+        for (int i = 0; i < list.length; i++) {
+          final id = FirebaseFirestore.instance.collection('_').doc().id; // random id
+          behaviors.add(
+            Behavior(
+              id: id,
+              name: list[i].name,
+              category: c,
+              rank: i + 1,
+            ),
+          );
+          goals.add(Goal(behaviorId: id, frequencyPerWeek: list[i].freqPerWeek));
+        }
+      }
+
+      await _storage.saveSetupV2(behaviors: behaviors, goals: goals);
+
+      if (!mounted) return;
+      widget.onDone();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _err = 'Setup failed: $e';
+      });
+      return;
+    }
+  }
+
+  Future<String?> _promptForText({required String title, required String hint}) async {
+    final ctrl = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: ctrl,
+          decoration: InputDecoration(hintText: hint),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, ctrl.text), child: const Text('add')),
+        ],
+      ),
+    );
+  }
+}
+
+class _BehaviorDraft {
+  String name;
+  int freqPerWeek;
+
+  _BehaviorDraft(this.name) : freqPerWeek = 3;
+}

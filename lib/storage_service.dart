@@ -5,6 +5,10 @@ import 'habit.dart';
 import 'day_log.dart';
 import 'fund_type.dart';
 
+// NEW (v2)
+import 'behavior.dart';
+import 'goal.dart';
+
 class StorageService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -29,6 +33,78 @@ class StorageService {
   DocumentReference<Map<String, dynamic>> _fundsDoc() =>
       _userDoc().collection('funds').doc('main');
 
+  // =========================
+  // V2: Setup gate + Behaviors
+  // =========================
+
+  CollectionReference<Map<String, dynamic>> _behaviorsCol() =>
+      _userDoc().collection('behaviors');
+
+  CollectionReference<Map<String, dynamic>> _goalsCol() =>
+      _userDoc().collection('goals');
+
+  Future<bool> isSetupComplete() async {
+    final snap = await _userDoc().get();
+    final data = snap.data();
+    if (data == null) return false;
+    return (data['setupComplete'] as bool?) ?? false;
+  }
+
+  Future<void> setSetupComplete(bool v) async {
+    await _userDoc().set({'setupComplete': v}, SetOptions(merge: true));
+  }
+
+  Future<void> saveBehaviors(List<Behavior> behaviors) async {
+    final batch = _db.batch();
+
+    for (final b in behaviors) {
+      batch.set(
+        _behaviorsCol().doc(b.id),
+        b.toMap(),
+        SetOptions(merge: true),
+      );
+    }
+
+    await batch.commit();
+  }
+
+  Future<void> saveGoals(List<Goal> goals) async {
+    final batch = _db.batch();
+
+    for (final g in goals) {
+      batch.set(
+        _goalsCol().doc(g.behaviorId),
+        g.toMap(),
+        SetOptions(merge: true),
+      );
+    }
+
+    await batch.commit();
+  }
+
+  /// One-call convenience used by the setup wizard.
+  Future<void> saveSetupV2({
+    required List<Behavior> behaviors,
+    required List<Goal> goals,
+  }) async {
+    final batch = _db.batch();
+
+    // upsert behaviors
+    for (final b in behaviors) {
+      batch.set(_behaviorsCol().doc(b.id), b.toMap(), SetOptions(merge: true));
+    }
+
+    // upsert goals (doc id = behaviorId)
+    for (final g in goals) {
+      batch.set(_goalsCol().doc(g.behaviorId), g.toMap(), SetOptions(merge: true));
+    }
+
+    // mark setup complete
+    batch.set(_userDoc(), {'setupComplete': true}, SetOptions(merge: true));
+
+    await batch.commit();
+  }
+
   // -------------------------
   // Habits (per user)
   // -------------------------
@@ -46,20 +122,16 @@ class StorageService {
       return seeded;
     }
 
-    return snap.docs
-        .map((d) => Habit.fromJson(d.data()))
-        .toList();
+    return snap.docs.map((d) => Habit.fromJson(d.data())).toList();
   }
 
   Future<void> saveHabits(List<Habit> habits) async {
-    // Upsert everything you pass in. (Does not delete missing habits.)
     final batch = _db.batch();
     for (final h in habits) {
       batch.set(_habitsCol().doc(h.id), h.toJson(), SetOptions(merge: true));
     }
     await batch.commit();
   }
-
 
   Future<void> deleteHabitEverywhere(String habitId) async {
     await _habitsCol().doc(habitId).delete();
@@ -76,22 +148,18 @@ class StorageService {
     await batch.commit();
   }
 
-
-  // Optional helper if you ever want deletions to be reflected:
   Future<void> replaceHabits(List<Habit> habits) async {
     final existing = await _habitsCol().get();
     final keepIds = habits.map((h) => h.id).toSet();
 
     final batch = _db.batch();
 
-    // delete docs not in the new list
     for (final doc in existing.docs) {
       if (!keepIds.contains(doc.id)) {
         batch.delete(doc.reference);
       }
     }
 
-    // upsert new list
     for (final h in habits) {
       batch.set(_habitsCol().doc(h.id), h.toJson(), SetOptions(merge: true));
     }
@@ -113,8 +181,6 @@ class StorageService {
   }
 
   Future<void> saveLogs(Map<String, DayLog> logsByDate) async {
-    // Same semantics as before: write the whole map you give me.
-    // Writes each DayLog as its own doc (id = dateKey).
     final batch = _db.batch();
     logsByDate.forEach((dateKey, log) {
       batch.set(_logsCol().doc(dateKey), log.toJson(), SetOptions(merge: true));
@@ -122,7 +188,6 @@ class StorageService {
     await batch.commit();
   }
 
-  // Recommended: targeted writes so you don't rewrite all logs each time.
   Future<void> upsertDayLog(DayLog log) async {
     await _logsCol().doc(log.dateKey).set(log.toJson(), SetOptions(merge: true));
   }
@@ -143,7 +208,6 @@ class StorageService {
     await _fundsDoc().set({t.key: value}, SetOptions(merge: true));
   }
 
-  // Optional convenience: atomic increment (safer than read-modify-write)
   Future<void> incrementFund(FundType t, double delta) async {
     await _fundsDoc().set(
       {t.key: FieldValue.increment(delta)},

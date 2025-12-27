@@ -1,4 +1,4 @@
-// home_shell.dart (your HabitHome page)
+// home_shell.dart (HabitHome)
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -11,6 +11,7 @@ import 'point_menu.dart';
 import 'daily.dart';
 import 'funds.dart';
 import 'storage_service.dart';
+import 'Setup/setup_wizard.dart';
 
 class HabitHome extends StatefulWidget {
   const HabitHome({super.key});
@@ -34,11 +35,36 @@ class _HabitHomeState extends State<HabitHome> {
   String _selectedDateKey = _todayKey();
   bool _loading = true;
 
+  // ✅ MUST be state, not a global
+  bool? _setupComplete;
+
   @override
   void initState() {
     super.initState();
     _storage = StorageService();
-    _loadAll();
+    _init();
+  }
+
+  Future<void> _init() async {
+    setState(() {
+      _loading = true;
+      _setupComplete = null;
+    });
+
+    final done = await _storage.isSetupComplete();
+
+    if (!mounted) return;
+
+    if (!done) {
+      setState(() {
+        _setupComplete = false;
+        _loading = false;
+      });
+      return;
+    }
+
+    setState(() => _setupComplete = true);
+    await _loadAll();
   }
 
   static String _todayKey() {
@@ -83,29 +109,23 @@ class _HabitHomeState extends State<HabitHome> {
     }
   }
 
-  // Persist habits in a way that matches the list exactly (handles deletions)
   Future<void> _persistHabits() async {
     await _storage.replaceHabits(_habits);
   }
 
-  // Persist all logs
   Future<void> _persistLogs() async {
     await _storage.saveLogs(_logsByDate);
   }
 
-  // Called after edits/adds in point menu
   Future<void> _onHabitsChanged() async {
     if (!mounted) return;
     setState(() {});
     await _persistHabits();
   }
 
-  // The only delete path. This is what PointMenuPage calls.
   Future<void> _deleteHabit(String id) async {
-    // 1) delete habit doc + remove id from completedHabitIds in every log
     await _storage.deleteHabitEverywhere(id);
 
-    // 2) update in-memory state
     if (!mounted) return;
     setState(() {
       _habits.removeWhere((h) => h.id == id);
@@ -114,8 +134,6 @@ class _HabitHomeState extends State<HabitHome> {
       }
     });
 
-    // 3) keep Firestore habits collection exactly matching list
-    // (this prevents “resurrection” even if something saves later)
     await _persistHabits();
   }
 
@@ -163,6 +181,19 @@ class _HabitHomeState extends State<HabitHome> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Gate into setup
+    if (_setupComplete == false) {
+      return SetupWizard(
+        onDone: () async {
+          setState(() {
+            _setupComplete = true;
+            _loading = true;
+          });
+          await _loadAll();
+        },
+      );
+    }
+
     if (_loading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -205,8 +236,7 @@ class _HabitHomeState extends State<HabitHome> {
       FundsPage(
         fundValue: (t) => _fundValue(t),
         onAdjust: (t, delta) async {
-          setState(() =>
-              _setFundValue(t, (_fundValue(t) + delta).clamp(0, 1e12)));
+          setState(() => _setFundValue(t, (_fundValue(t) + delta).clamp(0, 1e12)));
           await _storage.saveFund(t, _fundValue(t));
         },
       ),
