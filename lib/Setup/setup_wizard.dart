@@ -77,19 +77,31 @@ class _SetupWizardState extends State<SetupWizard> {
         Expanded(child: _stepView()),
         const SizedBox(height: 12),
         Row(
-          children: [
-            if (_step > 0)
-              TextButton(
-                onPressed: () => setState(() => _step--),
-                child: const Text('back'),
-              ),
-            const Spacer(),
-            FilledButton(
-              onPressed: _onNext,
-              child: Text(_step == 2 ? 'finish' : 'next'),
+        children: [
+          if (_step > 0)
+            TextButton(
+              onPressed: () => setState(() => _step--),
+              child: const Text('back'),
+            ),
+
+          // ✅ Skip only on ranking step
+          if (_step == 2) ...[
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: _skipRankingForNow,
+              child: const Text('skip for now'),
             ),
           ],
-        ),
+
+          const Spacer(),
+
+          FilledButton(
+            onPressed: _onNext,
+            child: Text(_step == 2 ? 'finish' : 'next'),
+          ),
+        ],
+      ),
+
       ],
     );
   }
@@ -106,6 +118,9 @@ class _SetupWizardState extends State<SetupWizard> {
         return _intro();
     }
   }
+Future<void> _skipRankingForNow() async {
+  await _onNext();
+}
 
   Widget _intro() {
     return Card(
@@ -145,16 +160,33 @@ class _SetupWizardState extends State<SetupWizard> {
                 style: TextStyle(color: Colors.black)),
             const SizedBox(height: 10),
             for (final b in list)
-              ListTile(
-                dense: true,
-                title: Text(b.name),
-                trailing: IconButton(
+            Row(
+              children: [
+                Expanded(
+                  child: Text(b.name),
+                ),
+
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.remove),
+                  onPressed: () => setState(() => b.freqPerWeek = (b.freqPerWeek - 1).clamp(0, 21)),
+                ),
+                Text('${b.freqPerWeek}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.add),
+                  onPressed: () => setState(() => b.freqPerWeek = (b.freqPerWeek + 1).clamp(0, 21)),
+                ),
+
+                IconButton(
                   icon: const Icon(Icons.close),
                   onPressed: () => setState(() => list.remove(b)),
                 ),
-              ),
+              ],
+            ),
+
             Align(
-              alignment: Alignment.centerLeft,
+              alignment: Alignment.centerRight,
               child: TextButton.icon(
                 onPressed: () async {
                   final name = await _promptForText(title: 'add behavior', hint: 'ex: strength exercise');
@@ -171,86 +203,60 @@ class _SetupWizardState extends State<SetupWizard> {
     );
   }
 
-  Widget _rankAndFrequency() {
-    return ListView(
-      children: [
-        for (final c in _setupCats) ...[
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(c.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 6),
-                  Text('Ranking axis:\n${c.rankingPrompt}', style: TextStyle(color: Colors.black)),
-                  const SizedBox(height: 10),
-                  _reorderList(c),
-                  const SizedBox(height: 10),
-                  const Text('Frequency goal (per week):', style: TextStyle(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 6),
-                  _freqControls(c),
-                ],
-              ),
+
+
+Widget _rankAndFrequency() {
+  return ListView(
+    children: [
+      for (final c in _setupCats) ...[
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(c.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 6),
+                Text('Ranking axis:\n${c.rankingPrompt}', style: const TextStyle(color: Colors.black)),
+                const SizedBox(height: 10),
+                _reorderOnlyList(c),
+              ],
             ),
           ),
-          const SizedBox(height: 12),
-        ],
+        ),
+        const SizedBox(height: 12),
       ],
-    );
+    ],
+  );
+}
+Widget _reorderOnlyList(CategoryType c) {
+  final list = _byCat[c]!;
+  if (list.isEmpty) {
+    return const Text('No behaviors added here.', style: TextStyle(color: Colors.black));
   }
 
-  Widget _reorderList(CategoryType c) {
-    final list = _byCat[c]!;
-    if (list.isEmpty) {
-      return Text('No behaviors added here.', style: TextStyle(color: Colors.black));
-    }
+  return ReorderableListView(
+    shrinkWrap: true,
+    physics: const NeverScrollableScrollPhysics(),
+    onReorder: (oldIndex, newIndex) {
+      setState(() {
+        if (newIndex > oldIndex) newIndex -= 1;
+        final item = list.removeAt(oldIndex);
+        list.insert(newIndex, item);
+      });
+    },
+    children: [
+      for (int i = 0; i < list.length; i++)
+        ListTile(
+          key: ValueKey('${c.key}-$i-${list[i].name}'),
+          leading: const Icon(Icons.drag_handle),
+          title: Text('${i + 1}. ${list[i].name}'),
+        ),
+    ],
+  );
+}
 
-    return ReorderableListView(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      onReorder: (oldIndex, newIndex) {
-        setState(() {
-          if (newIndex > oldIndex) newIndex -= 1;
-          final item = list.removeAt(oldIndex);
-          list.insert(newIndex, item);
-        });
-      },
-      children: [
-        for (int i = 0; i < list.length; i++)
-          ListTile(
-            key: ValueKey('${c.key}-$i-${list[i].name}'),
-            title: Text('${i + 1}. ${list[i].name}'),
-            leading: const Icon(Icons.drag_handle),
-          ),
-      ],
-    );
-  }
 
-  Widget _freqControls(CategoryType c) {
-    final list = _byCat[c]!;
-    if (list.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      children: [
-        for (final b in list)
-          Row(
-            children: [
-              Expanded(child: Text(b.name)),
-              IconButton(
-                onPressed: () => setState(() => b.freqPerWeek = (b.freqPerWeek - 1).clamp(0, 21)),
-                icon: const Icon(Icons.remove),
-              ),
-              Text('${b.freqPerWeek}', style: const TextStyle(fontWeight: FontWeight.w800)),
-              IconButton(
-                onPressed: () => setState(() => b.freqPerWeek = (b.freqPerWeek + 1).clamp(0, 21)),
-                icon: const Icon(Icons.add),
-              ),
-            ],
-          ),
-      ],
-    );
-  }
 
   Future<void> _onNext() async {
     if (_step < 2) {
