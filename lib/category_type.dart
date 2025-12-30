@@ -1,3 +1,7 @@
+// ==============================
+// category_type.dart
+// ==============================
+
 enum CategoryType {
   feelGoodIrregular,
   putOffTodos,
@@ -7,6 +11,13 @@ enum CategoryType {
 }
 
 extension CategoryTypeX on CategoryType {
+  static CategoryType fromKey(String key) {
+    return CategoryType.values.firstWhere(
+      (c) => c.key == key,
+      orElse: () => CategoryType.wantToMaintain,
+    );
+  }
+
   String get key => switch (this) {
         CategoryType.feelGoodIrregular => 'feel_good_irregular',
         CategoryType.putOffTodos => 'put_off_todos',

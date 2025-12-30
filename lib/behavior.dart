@@ -1,3 +1,7 @@
+// ==============================
+// behavior.dart
+// ==============================
+
 import 'category_type.dart';
 
 class Behavior {
@@ -18,4 +22,16 @@ class Behavior {
         'category': category.key,
         'rank': rank,
       };
+
+  static Behavior fromDoc(String id, Map<String, dynamic> data) {
+    final catKey =
+        (data['category'] as String?) ?? CategoryType.wantToMaintain.key;
+
+    return Behavior(
+      id: id,
+      name: (data['name'] as String?) ?? '',
+      category: CategoryTypeX.fromKey(catKey),
+      rank: (data['rank'] as int?) ?? 0,
+    );
+  }
 }

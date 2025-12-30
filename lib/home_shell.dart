@@ -35,7 +35,7 @@ class _HabitHomeState extends State<HabitHome> {
   String _selectedDateKey = _todayKey();
   bool _loading = true;
 
-  // ✅ MUST be state, not a global
+  // setup gate
   bool? _setupComplete;
 
   @override
@@ -52,7 +52,6 @@ class _HabitHomeState extends State<HabitHome> {
     });
 
     final done = await _storage.isSetupComplete();
-
     if (!mounted) return;
 
     if (!done) {
@@ -109,8 +108,9 @@ class _HabitHomeState extends State<HabitHome> {
     }
   }
 
+  // ✅ Use saveHabits for normal edits (merge/upsert)
   Future<void> _persistHabits() async {
-    await _storage.replaceHabits(_habits);
+    await _storage.saveHabits(_habits);
   }
 
   Future<void> _persistLogs() async {
@@ -185,9 +185,11 @@ class _HabitHomeState extends State<HabitHome> {
     if (_setupComplete == false) {
       return SetupWizard(
         onDone: () async {
+          if (!mounted) return;
           setState(() {
             _setupComplete = true;
             _loading = true;
+            _tabIndex = 0; // optional: land on menu after setup
           });
           await _loadAll();
         },
@@ -260,6 +262,15 @@ class _HabitHomeState extends State<HabitHome> {
             tooltip: 'Sign out',
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
+              // Optional: if you want to hard reset local state on signout:
+              // if (!mounted) return;
+              // setState(() {
+              //   _tabIndex = 0;
+              //   _habits.clear();
+              //   _logsByDate.clear();
+              //   _setupComplete = null;
+              //   _loading = true;
+              // });
             },
           ),
         ],

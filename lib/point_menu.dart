@@ -1,11 +1,15 @@
+// ==============================
 // point_menu.dart
+// ==============================
+
 import 'package:flutter/material.dart';
 import 'app_style.dart';
 import 'habit.dart';
+import 'category_type.dart';
 
 class PointMenuPage extends StatelessWidget {
   final List<Habit> habits;
-  final Future<void> Function() onChanged; // changed: async so parent can persist
+  final Future<void> Function() onChanged;
   final Future<void> Function(String habitId) onDeleteHabit;
 
   const PointMenuPage({
@@ -17,6 +21,21 @@ class PointMenuPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // group + sort
+    final grouped = <CategoryType, List<Habit>>{
+      for (final c in CategoryType.values) c: <Habit>[],
+    };
+
+    for (final h in habits) {
+      grouped[h.category]!.add(h);
+    }
+
+    for (final c in grouped.keys) {
+      grouped[c]!.sort((a, b) => a.rank.compareTo(b.rank));
+    }
+
+    final catsInUse = grouped.entries.where((e) => e.value.isNotEmpty).toList();
+
     return Container(
       decoration: BoxDecoration(gradient: AppStyle.pageWash()),
       child: Padding(
@@ -33,89 +52,91 @@ class PointMenuPage extends StatelessWidget {
             const SizedBox(height: 8),
             const Align(
               alignment: Alignment.centerLeft,
-              child: Text(
-                'Set point values for habits + exercise based on what motivates you right now.',
-              ),
+              child: Text('Set point values based on what motivates you right now.'),
             ),
             const SizedBox(height: 16),
+
             Expanded(
               child: Card(
-                child: ListView.separated(
+                child: ListView(
                   padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: habits.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (context, i) {
-                    final h = habits[i];
-                    return ListTile(
-                      title: Text(h.name),
-                      subtitle: Text(
-                        [
-                          '${h.points} pts',
-                          if (h.isExercise) 'exercise',
-                          if ((h.reasoning ?? '').trim().isNotEmpty)
-                            '“${h.reasoning}”',
-                        ].join(' • '),
-                      ),
-                      trailing: Wrap(
-                        spacing: 8,
-                        children: [
-                          IconButton(
-                            tooltip: 'edit',
-                            onPressed: () async {
-                              await _editHabitDialog(context, h);
-                              await onChanged();
-                            },
-                            icon: const Icon(Icons.edit),
+                  children: [
+                    for (final entry in catsInUse) ...[
+                      _CategoryHeader(title: entry.key.title),
+                      for (final h in entry.value) ...[
+                        ListTile(
+                          title: Text(h.name),
+                          subtitle: Text(
+                            [
+                              '${h.points} pts',
+                              if (h.isExercise) 'exercise',
+                              if ((h.reasoning ?? '').trim().isNotEmpty) '“${h.reasoning}”',
+                            ].join(' • '),
                           ),
-                          IconButton(
-                            tooltip: 'delete',
-                            onPressed: () async {
-                              final ok = await showDialog<bool>(
-                                context: context,
-                                builder: (_) => AlertDialog(
-                                  title: const Text('Delete habit?'),
-                                  content: Text('Delete “${h.name}” everywhere?'),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context, false),
-                                      child: const Text('Cancel'),
+                          trailing: Wrap(
+                            spacing: 8,
+                            children: [
+                              IconButton(
+                                tooltip: 'edit',
+                                onPressed: () async {
+                                  await _editHabitDialog(context, h);
+                                  await onChanged();
+                                },
+                                icon: const Icon(Icons.edit),
+                              ),
+                              IconButton(
+                                tooltip: 'delete',
+                                onPressed: () async {
+                                  final ok = await showDialog<bool>(
+                                    context: context,
+                                    builder: (_) => AlertDialog(
+                                      title: const Text('Delete habit?'),
+                                      content: Text('Delete “${h.name}” everywhere?'),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(context, false),
+                                          child: const Text('Cancel'),
+                                        ),
+                                        FilledButton(
+                                          onPressed: () => Navigator.pop(context, true),
+                                          child: const Text('Delete'),
+                                        ),
+                                      ],
                                     ),
-                                    FilledButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context, true),
-                                      child: const Text('Delete'),
-                                    ),
-                                  ],
-                                ),
-                              );
+                                  );
 
-                              if (ok == true) {
-                                // Parent owns the source of truth + persistence.
-                                await onDeleteHabit(h.id);
-                              }
-                            },
-                            icon: const Icon(Icons.delete_outline),
+                                  if (ok == true) {
+                                    await onDeleteHabit(h.id);
+                                  }
+                                },
+                                icon: const Icon(Icons.delete_outline),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    );
-                  },
+                        ),
+                        const Divider(height: 1),
+                      ],
+                      const SizedBox(height: 6),
+                    ],
+                  ],
                 ),
               ),
             ),
+
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
                 onPressed: () async {
+                  // default category for new items; you can add a category picker later
                   final newHabit = Habit(
                     id: 'h_${DateTime.now().microsecondsSinceEpoch}',
                     name: 'new habit',
                     points: 1,
+                    category: CategoryType.wantToMaintain,
+                    rank: 9999,
                   );
 
-                  // Mutate list, then persist via parent callback.
                   habits.add(newHabit);
                   await _editHabitDialog(context, newHabit);
                   await onChanged();
@@ -156,8 +177,7 @@ class PointMenuPage extends StatelessWidget {
               ),
               TextField(
                 controller: reasonCtrl,
-                decoration:
-                    const InputDecoration(labelText: 'reasoning (optional)'),
+                decoration: const InputDecoration(labelText: 'reasoning (optional)'),
               ),
               const SizedBox(height: 8),
               SwitchListTile(
@@ -178,12 +198,28 @@ class PointMenuPage extends StatelessWidget {
       ),
     );
 
-    habit.name =
-        nameCtrl.text.trim().isEmpty ? habit.name : nameCtrl.text.trim();
+    habit.name = nameCtrl.text.trim().isEmpty ? habit.name : nameCtrl.text.trim();
+
     final parsed = int.tryParse(ptsCtrl.text.trim());
     if (parsed != null) habit.points = parsed;
-    habit.reasoning =
-        reasonCtrl.text.trim().isEmpty ? null : reasonCtrl.text.trim();
+
+    habit.reasoning = reasonCtrl.text.trim().isEmpty ? null : reasonCtrl.text.trim();
     habit.isExercise = isExercise;
+  }
+}
+
+class _CategoryHeader extends StatelessWidget {
+  final String title;
+  const _CategoryHeader({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+      child: Text(
+        title,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+      ),
+    );
   }
 }

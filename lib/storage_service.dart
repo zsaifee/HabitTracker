@@ -1,3 +1,7 @@
+// ==============================
+// storage_service.dart
+// ==============================
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -5,9 +9,9 @@ import 'habit.dart';
 import 'day_log.dart';
 import 'fund_type.dart';
 
-// NEW (v2)
 import 'behavior.dart';
 import 'goal.dart';
+import 'category_type.dart';
 
 class StorageService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -33,15 +37,16 @@ class StorageService {
   DocumentReference<Map<String, dynamic>> _fundsDoc() =>
       _userDoc().collection('funds').doc('main');
 
-  // =========================
-  // V2: Setup gate + Behaviors
-  // =========================
-
+  // V2
   CollectionReference<Map<String, dynamic>> _behaviorsCol() =>
       _userDoc().collection('behaviors');
 
   CollectionReference<Map<String, dynamic>> _goalsCol() =>
       _userDoc().collection('goals');
+
+  // =========================
+  // Setup gate
+  // =========================
 
   Future<bool> isSetupComplete() async {
     final snap = await _userDoc().get();
@@ -54,44 +59,47 @@ class StorageService {
     await _userDoc().set({'setupComplete': v}, SetOptions(merge: true));
   }
 
-  Future<void> saveBehaviors(List<Behavior> behaviors) async {
-    final batch = _db.batch();
+  // =========================
+  // V2 save
+  // =========================
 
-    for (final b in behaviors) {
-      batch.set(
-        _behaviorsCol().doc(b.id),
-        b.toMap(),
-        SetOptions(merge: true),
-      );
-    }
-
-    await batch.commit();
-  }
-
-  Future<void> saveGoals(List<Goal> goals) async {
-    final batch = _db.batch();
-
-    for (final g in goals) {
-      batch.set(
-        _goalsCol().doc(g.behaviorId),
-        g.toMap(),
-        SetOptions(merge: true),
-      );
-    }
-
-    await batch.commit();
-  }
-
-  /// One-call convenience used by the setup wizard.
   Future<void> saveSetupV2({
     required List<Behavior> behaviors,
     required List<Goal> goals,
   }) async {
     final batch = _db.batch();
 
-    // upsert behaviors
+    // wipe existing habits so defaults disappear
+    final oldHabits = await _habitsCol().get();
+    for (final d in oldHabits.docs) {
+      batch.delete(d.reference);
+    }
+
+    // wipe existing goals (setup is source of truth)
+    final oldGoals = await _goalsCol().get();
+    for (final d in oldGoals.docs) {
+      batch.delete(d.reference);
+    }
+
+    // upsert behaviors + mirror into habits
     for (final b in behaviors) {
+      // behaviors
       batch.set(_behaviorsCol().doc(b.id), b.toMap(), SetOptions(merge: true));
+
+      // habits mirror for the rest of the app
+      batch.set(
+        _habitsCol().doc(b.id),
+        Habit(
+          id: b.id,
+          name: b.name,
+          points: 1,
+          category: b.category,
+          rank: b.rank,
+          isExercise: false,
+          reasoning: null,
+        ).toJson(),
+        SetOptions(merge: true),
+      );
     }
 
     // upsert goals (doc id = behaviorId)
@@ -105,14 +113,26 @@ class StorageService {
     await batch.commit();
   }
 
-  // -------------------------
-  // Habits (per user)
-  // -------------------------
+  // =========================
+  // Habits
+  // =========================
+
   Future<List<Habit>> loadHabits() async {
     final snap = await _habitsCol().get();
 
-    if (snap.docs.isEmpty) {
-      // seed defaults on first run for this account
+    if (snap.docs.isNotEmpty) {
+      final habits = snap.docs.map((d) => Habit.fromDoc(d.id, d.data())).toList();
+      habits.sort((a, b) {
+        final c = a.category.key.compareTo(b.category.key);
+        if (c != 0) return c;
+        return a.rank.compareTo(b.rank);
+      });
+      return habits;
+    }
+
+    // No habits yet: seed defaults ONLY if setup isn't complete.
+    final setupDone = await isSetupComplete();
+    if (!setupDone) {
       final seeded = _seedHabits();
       final batch = _db.batch();
       for (final h in seeded) {
@@ -122,7 +142,36 @@ class StorageService {
       return seeded;
     }
 
-    return snap.docs.map((d) => Habit.fromJson(d.data())).toList();
+    // Setup complete but habits empty: rebuild from behaviors (recovery)
+    final behaviorsSnap = await _behaviorsCol().get();
+    if (behaviorsSnap.docs.isEmpty) return <Habit>[];
+
+    final batch = _db.batch();
+    final out = <Habit>[];
+
+    for (final d in behaviorsSnap.docs) {
+      final b = Behavior.fromDoc(d.id, d.data());
+      final h = Habit(
+        id: b.id,
+        name: b.name,
+        points: 1,
+        category: b.category,
+        rank: b.rank,
+      );
+
+      batch.set(_habitsCol().doc(h.id), h.toJson(), SetOptions(merge: true));
+      out.add(h);
+    }
+
+    await batch.commit();
+
+    out.sort((a, b) {
+      final c = a.category.key.compareTo(b.category.key);
+      if (c != 0) return c;
+      return a.rank.compareTo(b.rank);
+    });
+
+    return out;
   }
 
   Future<void> saveHabits(List<Habit> habits) async {
@@ -167,9 +216,10 @@ class StorageService {
     await batch.commit();
   }
 
-  // -------------------------
-  // Logs (per user)
-  // -------------------------
+  // =========================
+  // Logs
+  // =========================
+
   Future<Map<String, DayLog>> loadLogs() async {
     final snap = await _logsCol().get();
     final out = <String, DayLog>{};
@@ -192,9 +242,10 @@ class StorageService {
     await _logsCol().doc(log.dateKey).set(log.toJson(), SetOptions(merge: true));
   }
 
-  // -------------------------
-  // Funds (per user)
-  // -------------------------
+  // =========================
+  // Funds
+  // =========================
+
   Future<double> loadFund(FundType t) async {
     final snap = await _fundsDoc().get();
     final data = snap.data();
@@ -215,14 +266,14 @@ class StorageService {
     );
   }
 
-  // -------------------------
-  // Defaults
-  // -------------------------
-  List<Habit> _seedHabits() => [
-        Habit(id: 'h_water', name: 'drink water', points: 1, reasoning: 'baseline care'),
-        Habit(id: 'h_walk', name: 'walk (10+ min)', points: 2, reasoning: 'movement helps my brain'),
-        Habit(id: 'h_workout', name: 'exercise / workout', points: 4, reasoning: 'big effort', isExercise: true),
-        Habit(id: 'h_read', name: 'read (10+ min)', points: 2),
-        Habit(id: 'h_cleanup', name: 'tidy space (5 min)', points: 1),
-      ];
+  // =========================
+  // Defaults (KEEP YOUR EXISTING)
+  // =========================
+
+  List<Habit> _seedHabits() {
+    // IMPORTANT:
+    // Replace with your real defaults list if you still want defaults before setup.
+    // If you *never* want defaults, just return [].
+    return <Habit>[];
+  }
 }
