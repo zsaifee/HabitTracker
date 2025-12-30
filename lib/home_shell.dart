@@ -23,7 +23,7 @@ class HabitHome extends StatefulWidget {
 class _HabitHomeState extends State<HabitHome> {
   late final StorageService _storage;
 
-  int _tabIndex = 0;
+  int _tabIndex = 1;
 
   final List<Habit> _habits = [];
   final Map<String, DayLog> _logsByDate = {}; // dateKey -> DayLog

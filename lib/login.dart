@@ -260,7 +260,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 : Text(_isLogin ? 'Log in' : 'Create account'),
                           ),
 
-                          if (_isLogin) ...[
+                          if (!_isLogin) ...[
                             const SizedBox(height: 6),
                             TextButton(
                               onPressed: _busy ? null : _resendVerification,
@@ -269,27 +269,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ],
 
                           const SizedBox(height: 10),
-
-                          OutlinedButton.icon(
-                            onPressed: _busy
-                                ? null
-                                : () async {
-                                    setState(() {
-                                      _busy = true;
-                                      _err = null;
-                                      _info = null;
-                                    });
-                                    try {
-                                      await FirebaseAuth.instance.signInAnonymously();
-                                    } on FirebaseAuthException catch (e) {
-                                      setState(() => _err = _prettyAuthError(e));
-                                    } finally {
-                                      if (mounted) setState(() => _busy = false);
-                                    }
-                                  },
-                            icon: const Icon(Icons.person_outline),
-                            label: const Text('Continue as guest'),
-                          ),
                         ],
                       ),
                     ),

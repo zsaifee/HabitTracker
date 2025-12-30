@@ -200,8 +200,10 @@ Future<void> _skipRankingForNow() async {
     );
   }
 
-  Widget _categoryCard(CategoryType c) {
+    Widget _categoryCard(CategoryType c) {
     final list = _byCat[c]!;
+    const freqColWidth = 150.0;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -210,37 +212,67 @@ Future<void> _skipRankingForNow() async {
           children: [
             Text(c.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
             const SizedBox(height: 6),
-            Text(
+            const Text(
               'Add behaviors in a “behavior lens” (ex: “strength exercise”, not “gym 2x/week”).',
               style: TextStyle(color: Colors.black),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
+
+            // ✅ Header row: puts the frequency label on the right, above the controls
             if (c.usesFrequency) ...[
-              const Text(
-                'Frequency (times per week target)',
-                style: TextStyle(fontWeight: FontWeight.w800),
+              Row(
+                children: const [
+                  Expanded(child: SizedBox()), // left column header empty
+                  SizedBox(
+                    width: freqColWidth,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        'Frequency (per week)',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 6),
             ],
-            const SizedBox(height: 10),
+
+            // ✅ Behavior rows
             for (final b in list)
               Row(
                 children: [
                   Expanded(child: Text(b.name)),
 
-                  if (c.usesFrequency) ...[
-                    IconButton(
-                      visualDensity: VisualDensity.compact,
-                      icon: const Icon(Icons.remove),
-                      onPressed: () => setState(() => b.freqPerWeek = (b.freqPerWeek - 1).clamp(0, 21)),
+                  // right-aligned fixed-width column
+                  if (c.usesFrequency)
+                    SizedBox(
+                      width: freqColWidth,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          IconButton(
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(Icons.remove),
+                            onPressed: () => setState(() => b.freqPerWeek = (b.freqPerWeek - 1).clamp(0, 21)),
+                          ),
+                          SizedBox(
+                            width: 22,
+                            child: Text(
+                              '${b.freqPerWeek}',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                          IconButton(
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(Icons.add),
+                            onPressed: () => setState(() => b.freqPerWeek = (b.freqPerWeek + 1).clamp(0, 21)),
+                          ),
+                        ],
+                      ),
                     ),
-                    Text('${b.freqPerWeek}', style: const TextStyle(fontWeight: FontWeight.w800)),
-                    IconButton(
-                      visualDensity: VisualDensity.compact,
-                      icon: const Icon(Icons.add),
-                      onPressed: () => setState(() => b.freqPerWeek = (b.freqPerWeek + 1).clamp(0, 21)),
-                    ),
-                  ],
 
                   IconButton(
                     icon: const Icon(Icons.close),
@@ -266,6 +298,7 @@ Future<void> _skipRankingForNow() async {
       ),
     );
   }
+
 
 
 

@@ -240,24 +240,44 @@ class _DailyPageState extends State<DailyPage> {
           foregroundColor: Colors.black87,
         ),
         onPressed: amount <= 0
-            ? null
-            : () async {
-                final messenger = ScaffoldMessenger.of(context);
+    ? null
+    : () async {
+        final messenger = ScaffoldMessenger.of(context);
 
-                await widget.onDeposit(fund, amount);
-                if (!mounted) return;
+        // snapshot what was checked *at the moment of deposit*
+        final toClear = widget.log.completedHabitIds.toList(growable: false);
 
-                messenger.showSnackBar(
-                  SnackBar(
-                    behavior: SnackBarBehavior.floating,
-                    backgroundColor: Colors.black87,
-                    content: Text(
-                      'deposited \$${amount.toStringAsFixed(0)} '
-                      'into ${fund.label} ✨',
-                    ),
-                  ),
-                );
-              },
+        try {
+          await widget.onDeposit(fund, amount);
+          if (!mounted) return;
+
+          // uncheck everything that was counted
+          await Future.wait(
+            toClear.map((id) => widget.onToggleHabit(id, false)),
+          );
+          if (!mounted) return;
+
+          messenger.showSnackBar(
+            SnackBar(
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: Colors.black87,
+              content: Text(
+                'deposited \$${amount.toStringAsFixed(0)} '
+                'into ${fund.label} ✨',
+              ),
+            ),
+          );
+        } catch (e) {
+          if (!mounted) return;
+          messenger.showSnackBar(
+            SnackBar(
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: Colors.black87,
+              content: Text('deposit failed: $e'),
+            ),
+          );
+        }
+      },        
         icon: Icon(fund.icon),
         label: Text('deposit into ${fund.label}'),
       ),

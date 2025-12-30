@@ -2,16 +2,24 @@ import 'package:flutter/material.dart';
 import 'app_style.dart';
 import 'fund_type.dart';
 
-
 class FundsPage extends StatelessWidget {
   final double Function(FundType) fundValue;
   final Future<void> Function(FundType, double delta) onAdjust;
 
-  const FundsPage({super.key, 
+  const FundsPage({
+    super.key,
     required this.fundValue,
     required this.onAdjust,
   });
 
+  // Defaults (you can later load these from Firestore/settings)
+  static const double _lilTreatDefault = 6.00;
+
+  static const List<_PurchaseOption> _funPurchaseOptions = [
+    _PurchaseOption('movie ticket', 18),
+    _PurchaseOption('book', 15),
+    _PurchaseOption('cute top', 32),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -23,10 +31,10 @@ class FundsPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // colored header strip
+            // header
             Container(
-              decoration: BoxDecoration(
-                borderRadius: const BorderRadius.only(
+              decoration: const BoxDecoration(
+                borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(22),
                   topRight: Radius.circular(22),
                 ),
@@ -66,25 +74,33 @@ class FundsPage extends StatelessWidget {
                     style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w900),
                   ),
                   const SizedBox(height: 12),
+
+                  // actions
                   Row(
                     children: [
                       OutlinedButton.icon(
-                        onPressed: () => _spendDialog(context, t),
-                        icon: const Icon(Icons.remove),
-                        label: const Text('spend'),
+                        onPressed: v <= 0 ? null : () => _cashOutSheet(context, t, preset: null),
+                        icon: const Icon(Icons.payments_outlined),
+                        label: const Text('cash out'),
                       ),
                       const SizedBox(width: 8),
-                      FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: c,
-                          foregroundColor: Colors.black87,
-                        ),
-                        onPressed: () => _addDialog(context, t),
-                        icon: const Icon(Icons.add),
-                        label: const Text('add'),
-                      ),
+
                     ],
                   ),
+
+                  // preset cash out buttons (only for lilTreat + funPurchase)
+                  if (t == FundType.lilTreat || t == FundType.funPurchase) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      'Quick cash out',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _presetRow(context, t),
+                  ],
                 ],
               ),
             ),
@@ -122,67 +138,181 @@ class FundsPage extends StatelessWidget {
     );
   }
 
-  Future<void> _addDialog(BuildContext context, FundType t) async {
-    final ctrl = TextEditingController();
-    final amount = await showDialog<double>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text('Add to ${t.label}'),
-        content: TextField(
-          controller: ctrl,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: 'amount',
-            hintText: 'e.g. 3.50',
+  Widget _presetRow(BuildContext context, FundType t) {
+    final balance = fundValue(t);
+
+    if (t == FundType.lilTreat) {
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          OutlinedButton.icon(
+            onPressed: balance <= 0
+                ? null
+                : () => _cashOutSheet(
+                      context,
+                      t,
+                      preset: _CashOutPreset(label: 'lil treat', amount: _lilTreatDefault),
+                    ),
+            icon: const Icon(Icons.local_cafe_outlined),
+            label: const Text('latte (~\$6)'),
           ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('cancel')),
-          FilledButton(
-            onPressed: () {
-              final v = double.tryParse(ctrl.text.trim());
-              Navigator.pop(context, v);
-            },
-            child: const Text('add'),
+          TextButton(
+            onPressed: balance <= 0 ? null : () => _cashOutSheet(context, t, preset: null),
+            child: const Text('custom'),
           ),
         ],
-      ),
-    );
-
-    if (amount != null && amount > 0) {
-      await onAdjust(t, amount);
+      );
     }
-  }
 
-  Future<void> _spendDialog(BuildContext context, FundType t) async {
-    final ctrl = TextEditingController();
-    final amount = await showDialog<double>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text('Spend from ${t.label}'),
-        content: TextField(
-          controller: ctrl,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: 'amount',
-            hintText: 'e.g. 6.00',
-          ),
+    // funPurchase
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        ..._funPurchaseOptions.map((opt) {
+          return OutlinedButton(
+            onPressed: balance <= 0
+                ? null
+                : () => _cashOutSheet(
+                      context,
+                      t,
+                      preset: _CashOutPreset(label: opt.label, amount: opt.amount),
+                    ),
+            child: Text('${opt.label} (\$${opt.amount.toStringAsFixed(0)})'),
+          );
+        }),
+        TextButton(
+          onPressed: balance <= 0 ? null : () => _cashOutSheet(context, t, preset: null),
+          child: const Text('custom'),
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('cancel')),
-          FilledButton(
-            onPressed: () {
-              final v = double.tryParse(ctrl.text.trim());
-              Navigator.pop(context, v);
-            },
-            child: const Text('spend'),
-          ),
-        ],
-      ),
+      ],
     );
-
-    if (amount != null && amount > 0) {
-      await onAdjust(t, -amount);
-    }
   }
+
+  
+
+  Future<void> _cashOutSheet(
+    BuildContext context,
+    FundType t, {
+    required _CashOutPreset? preset,
+  }) async {
+    final balance = fundValue(t);
+    final presetAmount = preset?.amount ?? (balance >= _lilTreatDefault ? _lilTreatDefault : balance);
+
+    final ctrl = TextEditingController(text: presetAmount.toStringAsFixed(2));
+    String? err;
+
+    double clamp(double v) => v.clamp(0.0, balance);
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setState) {
+            final current = double.tryParse(ctrl.text) ?? 0.0;
+
+            void setAmount(double v) {
+              ctrl.text = clamp(v).toStringAsFixed(2);
+              setState(() => err = null);
+            }
+
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 8,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    preset == null ? 'Cash out • ${t.label}' : 'Cash out • ${t.label} • ${preset.label}',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 6),
+                  Text('Balance: \$${balance.toStringAsFixed(2)}',
+                      style: TextStyle(color: Colors.black)),
+                  const SizedBox(height: 14),
+
+                  TextField(
+                    controller: ctrl,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: 'amount',
+                      prefixText: '\$',
+                      errorText: err,
+                    ),
+                    onChanged: (_) => setState(() => err = null),
+                  ),
+
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      OutlinedButton(onPressed: () => setAmount(current - 1), child: const Text('-1')),
+                      OutlinedButton(onPressed: () => setAmount(current - 5), child: const Text('-5')),
+                      OutlinedButton(onPressed: () => setAmount(current + 1), child: const Text('+1')),
+                      OutlinedButton(onPressed: () => setAmount(current + 5), child: const Text('+5')),
+                      TextButton(onPressed: () => setAmount(balance), child: const Text('max')),
+                    ],
+                  ),
+
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: balance <= 0
+                              ? null
+                              : () async {
+                                  final raw = double.tryParse(ctrl.text.trim());
+                                  if (raw == null) {
+                                    setState(() => err = 'Enter a valid number.');
+                                    return;
+                                  }
+                                  final amt = clamp(raw);
+                                  if (amt <= 0) {
+                                    setState(() => err = 'Amount must be > 0.');
+                                    return;
+                                  }
+                                  if (amt > balance) {
+                                    setState(() => err = 'Not enough balance.');
+                                    return;
+                                  }
+
+                                  Navigator.pop(ctx);
+                                  await onAdjust(t, -amt);
+                                },
+                          icon: const Icon(Icons.payments),
+                          label: Text('cash out \$${clamp(current).toStringAsFixed(2)}'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _PurchaseOption {
+  final String label;
+  final double amount;
+  const _PurchaseOption(this.label, this.amount);
+}
+
+class _CashOutPreset {
+  final String label;
+  final double amount;
+  const _CashOutPreset({required this.label, required this.amount});
 }

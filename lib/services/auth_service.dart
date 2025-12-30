@@ -6,7 +6,6 @@ class AuthService {
   User? get currentUser => _auth.currentUser;
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  // Sign up with email & password + send verification email
   Future<void> signUp(String email, String password) async {
     try {
       final cred = await _auth.createUserWithEmailAndPassword(
@@ -16,7 +15,6 @@ class AuthService {
 
       await cred.user!.sendEmailVerification();
 
-      // Optional but recommended: sign out so they must verify before using the app
       await _auth.signOut();
     } on FirebaseAuthException {
       rethrow;
