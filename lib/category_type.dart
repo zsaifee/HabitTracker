@@ -46,4 +46,69 @@ extension CategoryTypeX on CategoryType {
         CategoryType.goalsAndAccomplishments =>
           'Optional milestones (not repeatable habits)',
       };
+
+  // -----------------------------
+  // Setup copy + behavior guidance
+  // -----------------------------
+  bool get usesFrequency => switch (this) {
+        CategoryType.wantToStart => true,
+        CategoryType.wantToMaintain => true,
+        _ => false,
+      };
+
+  String get setupDescription => switch (this) {
+        CategoryType.feelGoodIrregular =>
+          'High-effort or emotionally loaded actions you don’t do often, but that noticeably improve your life when you do them. These are less “habits” and more intentional resets/check-ins.',
+        CategoryType.putOffTodos =>
+          'Tasks that create mental drag just by existing. Often small, but avoided due to dread, ambiguity, or emotional friction. One-time — you’ll do them once and move on.',
+        CategoryType.wantToStart =>
+          'New behaviors you’re intentionally building that aren’t automatic yet. These need gentle reinforcement and a realistic target.',
+        CategoryType.wantToMaintain =>
+          'Established routines you already do fairly consistently, but still want to acknowledge and protect from burnout or decay.',
+        CategoryType.goalsAndAccomplishments =>
+          'Optional milestones that aren’t repeatable habits (ex: “graduate”, “hit a savings goal”).',
+      };
+
+  List<String> get setupExamples => switch (this) {
+        CategoryType.feelGoodIrregular => const [
+            'budget review / money check-in',
+            'deep clean',
+            'closet purge',
+            'update resume / portfolio',
+            'therapy reflection / journaling dump',
+            'plan a trip',
+          ],
+        CategoryType.putOffTodos => const [
+            'schedule a doctor/dentist appointment',
+            'respond to a difficult email/text',
+            'cancel a subscription',
+            'mail something',
+            'make returns',
+          ],
+        CategoryType.wantToStart => const [
+            'morning stretch',
+            'read before bed',
+            'drink enough water',
+            'daily walk',
+            'meditation practice',
+          ],
+        CategoryType.wantToMaintain => const [
+            'take meds',
+            'brush/floss',
+            'go to class/work',
+            'exercise you already do',
+            'sleep routine',
+          ],
+        CategoryType.goalsAndAccomplishments => const [
+            'graduate',
+            'hit \$X savings goal',
+            'squat 200 lb',
+          ],
+      };
+
+  String get setupFrequencyNote => switch (this) {
+        CategoryType.wantToStart => 'Configurable (choose a gentle times/week target).',
+        CategoryType.wantToMaintain => 'Fixed, recurring (usually daily or weekly).',
+        _ => 'Not needed for this category.',
+      };
 }

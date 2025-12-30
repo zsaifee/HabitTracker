@@ -85,7 +85,7 @@ class _SetupWizardState extends State<SetupWizard> {
             ),
 
           // ✅ Skip only on ranking step
-          if (_step == 2) ...[
+          if (_step == 3) ...[
             const SizedBox(width: 8),
             TextButton(
               onPressed: _skipRankingForNow,
@@ -97,7 +97,7 @@ class _SetupWizardState extends State<SetupWizard> {
 
           FilledButton(
             onPressed: _onNext,
-            child: Text(_step == 2 ? 'finish' : 'next'),
+            child: Text(_step == 3 ? 'finish' : 'next'),
           ),
         ],
       ),
@@ -111,8 +111,10 @@ class _SetupWizardState extends State<SetupWizard> {
       case 0:
         return _intro();
       case 1:
-        return _brainDump();
+        return _categoryInstructions();
       case 2:
+        return _brainDump();
+      case 3:
         return _rankAndFrequency();
       default:
         return _intro();
@@ -132,6 +134,58 @@ Future<void> _skipRankingForNow() async {
           Text('1) brain dump behaviors into categories\n2) rank them inside each category\n3) choose a gentle frequency target\n\nnothing is permanent — this is just “right now”.'),
         ]),
       ),
+    );
+  }
+
+  Widget _categoryInstructions() {
+    return ListView(
+      children: [
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text('how these categories work', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                SizedBox(height: 10),
+                Text(
+                  'Brain dump first — you’ll filter later in your habit focus view.\n\n'
+                  'Try to write behaviors in an “individual behavior lens” (ex: “strength exercise”, not “gym 2x/week”). '
+                  'That way you’re not locked to a specific schedule yet — you earn for whatever you actually do.',
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        for (final c in _setupCats) ...[
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(c.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 8),
+                  Text(c.setupDescription),
+                  const SizedBox(height: 10),
+                  const Text('examples', style: TextStyle(fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 6),
+                  ...c.setupExamples.map((e) => Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text('• $e'),
+                      )),
+                  const SizedBox(height: 10),
+                  Text('frequency: ${c.setupFrequencyNote}'),
+                  const SizedBox(height: 6),
+                  Text('rank: ${c.rankingPrompt}'),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+      ],
     );
   }
 
@@ -156,34 +210,44 @@ Future<void> _skipRankingForNow() async {
           children: [
             Text(c.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
             const SizedBox(height: 6),
-            Text('Add behaviors in a “behavior lens” (ex: “strength exercise”, not “gym 2x/week”).',
-                style: TextStyle(color: Colors.black)),
+            Text(
+              'Add behaviors in a “behavior lens” (ex: “strength exercise”, not “gym 2x/week”).',
+              style: TextStyle(color: Colors.black),
+            ),
+            const SizedBox(height: 8),
+            if (c.usesFrequency) ...[
+              const Text(
+                'Frequency (times per week target)',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 6),
+            ],
             const SizedBox(height: 10),
             for (final b in list)
-            Row(
-              children: [
-                Expanded(
-                  child: Text(b.name),
-                ),
+              Row(
+                children: [
+                  Expanded(child: Text(b.name)),
 
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.remove),
-                  onPressed: () => setState(() => b.freqPerWeek = (b.freqPerWeek - 1).clamp(0, 21)),
-                ),
-                Text('${b.freqPerWeek}', style: const TextStyle(fontWeight: FontWeight.w800)),
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.add),
-                  onPressed: () => setState(() => b.freqPerWeek = (b.freqPerWeek + 1).clamp(0, 21)),
-                ),
+                  if (c.usesFrequency) ...[
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      icon: const Icon(Icons.remove),
+                      onPressed: () => setState(() => b.freqPerWeek = (b.freqPerWeek - 1).clamp(0, 21)),
+                    ),
+                    Text('${b.freqPerWeek}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      icon: const Icon(Icons.add),
+                      onPressed: () => setState(() => b.freqPerWeek = (b.freqPerWeek + 1).clamp(0, 21)),
+                    ),
+                  ],
 
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => setState(() => list.remove(b)),
-                ),
-              ],
-            ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => setState(() => list.remove(b)),
+                  ),
+                ],
+              ),
 
             Align(
               alignment: Alignment.centerRight,
@@ -259,7 +323,7 @@ Widget _reorderOnlyList(CategoryType c) {
 
 
   Future<void> _onNext() async {
-    if (_step < 2) {
+    if (_step < 3) {
       setState(() => _step++);
       return;
     }
@@ -286,7 +350,12 @@ Widget _reorderOnlyList(CategoryType c) {
               rank: i + 1,
             ),
           );
-          goals.add(Goal(behaviorId: id, frequencyPerWeek: list[i].freqPerWeek));
+          goals.add(
+            Goal(
+              behaviorId: id,
+              frequencyPerWeek: c.usesFrequency ? list[i].freqPerWeek : 0,
+            ),
+          );
         }
       }
 
