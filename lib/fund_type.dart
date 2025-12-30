@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 
 
-enum FundType { lilTreat, funPurchase, saver }
+enum FundType { lilTreat, funPurchase }
 
 extension FundTypeX on FundType {
   String get label {
@@ -11,8 +11,6 @@ extension FundTypeX on FundType {
         return 'a lil treat';
       case FundType.funPurchase:
         return 'fun purchase';
-      case FundType.saver:
-        return 'she’s a saver';
     }
   }
 
@@ -22,8 +20,7 @@ extension FundTypeX on FundType {
         return Icons.coffee;
       case FundType.funPurchase:
         return Icons.shopping_bag;
-      case FundType.saver:
-        return Icons.bookmark;
+      
     }
   }
 
@@ -33,8 +30,7 @@ extension FundTypeX on FundType {
         return 'fund_lilTreat';
       case FundType.funPurchase:
         return 'fund_funPurchase';
-      case FundType.saver:
-        return 'fund_saver';
+      
     }
   }
 }

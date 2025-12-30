@@ -19,6 +19,13 @@ class PointMenuPage extends StatelessWidget {
     required this.onDeleteHabit,
   });
 
+  int _nextRankFor(CategoryType cat, {String? excludeId}) {
+    final maxRank = habits
+        .where((h) => h.category == cat && (excludeId == null || h.id != excludeId))
+        .fold<int>(0, (m, h) => h.rank > m ? h.rank : m);
+    return maxRank + 1;
+  }
+
   @override
   Widget build(BuildContext context) {
     // group + sort
@@ -128,13 +135,14 @@ class PointMenuPage extends StatelessWidget {
               width: double.infinity,
               child: FilledButton.icon(
                 onPressed: () async {
-                  // default category for new items; you can add a category picker later
+                  final defaultCat = CategoryType.wantToMaintain;
+
                   final newHabit = Habit(
                     id: 'h_${DateTime.now().microsecondsSinceEpoch}',
                     name: 'new habit',
                     points: 1,
-                    category: CategoryType.wantToMaintain,
-                    rank: 9999,
+                    category: defaultCat,
+                    rank: _nextRankFor(defaultCat),
                   );
 
                   habits.add(newHabit);
@@ -155,56 +163,95 @@ class PointMenuPage extends StatelessWidget {
     final nameCtrl = TextEditingController(text: habit.name);
     final ptsCtrl = TextEditingController(text: habit.points.toString());
     final reasonCtrl = TextEditingController(text: habit.reasoning ?? '');
+
     bool isExercise = habit.isExercise;
+
+    // NEW: local dialog state for category
+    CategoryType selectedCat = habit.category;
 
     await showDialog<void>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Edit habit'),
-        content: SizedBox(
-          width: 520,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'name'),
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) => AlertDialog(
+            title: const Text('Edit habit'),
+            content: SizedBox(
+              width: 520,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(labelText: 'name'),
+                  ),
+                  TextField(
+                    controller: ptsCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'points'),
+                  ),
+
+                  // NEW: category picker
+                  DropdownButtonFormField<CategoryType>(
+                    initialValue: selectedCat,
+                    decoration: const InputDecoration(labelText: 'category'),
+                    items: [
+                      for (final c in CategoryType.values)
+                        DropdownMenuItem(
+                          value: c,
+                          child: Text(c.title),
+                        ),
+                    ],
+                    onChanged: (c) {
+                      if (c == null) return;
+                      setState(() => selectedCat = c);
+                    },
+                  ),
+
+                  TextField(
+                    controller: reasonCtrl,
+                    decoration: const InputDecoration(labelText: 'reasoning (optional)'),
+                  ),
+                  const SizedBox(height: 8),
+                  SwitchListTile(
+                    value: isExercise,
+                    onChanged: (v) => setState(() => isExercise = v),
+                    title: const Text('mark as exercise'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ],
               ),
-              TextField(
-                controller: ptsCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'points'),
-              ),
-              TextField(
-                controller: reasonCtrl,
-                decoration: const InputDecoration(labelText: 'reasoning (optional)'),
-              ),
-              const SizedBox(height: 8),
-              SwitchListTile(
-                value: isExercise,
-                onChanged: (v) => isExercise = v,
-                title: const Text('mark as exercise'),
-                contentPadding: EdgeInsets.zero,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('done'),
               ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('done'),
-          ),
-        ],
-      ),
+        );
+      },
     );
 
-    habit.name = nameCtrl.text.trim().isEmpty ? habit.name : nameCtrl.text.trim();
+    // apply edits
+    final newName = nameCtrl.text.trim();
+    if (newName.isNotEmpty) habit.name = newName;
 
-    final parsed = int.tryParse(ptsCtrl.text.trim());
-    if (parsed != null) habit.points = parsed;
+    final parsedPts = int.tryParse(ptsCtrl.text.trim());
+    if (parsedPts != null) habit.points = parsedPts;
 
     habit.reasoning = reasonCtrl.text.trim().isEmpty ? null : reasonCtrl.text.trim();
     habit.isExercise = isExercise;
+
+    // NEW: if category changed, update + assign rank inside that category
+    if (habit.category != selectedCat) {
+      habit.category = selectedCat;
+      habit.rank = _nextRankFor(selectedCat, excludeId: habit.id);
+    }
+
+    // NEW: if rank is "placeholder-y", set it to a real next rank
+    if (habit.rank <= 0 || habit.rank >= 9999) {
+      habit.rank = _nextRankFor(habit.category, excludeId: habit.id);
+    }
   }
 }
 

@@ -7,7 +7,6 @@ enum CategoryType {
   putOffTodos,
   wantToStart,
   wantToMaintain,
-  goalsAndAccomplishments,
 }
 
 extension CategoryTypeX on CategoryType {
@@ -23,7 +22,6 @@ extension CategoryTypeX on CategoryType {
         CategoryType.putOffTodos => 'put_off_todos',
         CategoryType.wantToStart => 'want_to_start',
         CategoryType.wantToMaintain => 'want_to_maintain',
-        CategoryType.goalsAndAccomplishments => 'goals_and_accomplishments',
       };
 
   String get title => switch (this) {
@@ -31,7 +29,6 @@ extension CategoryTypeX on CategoryType {
         CategoryType.putOffTodos => 'to do’s you’ve been putting off',
         CategoryType.wantToStart => 'habits you want to start',
         CategoryType.wantToMaintain => 'habits you want to maintain',
-        CategoryType.goalsAndAccomplishments => 'goals & accomplishments',
       };
 
   String get rankingPrompt => switch (this) {
@@ -43,8 +40,6 @@ extension CategoryTypeX on CategoryType {
           'Most difficult to start → least difficult to start',
         CategoryType.putOffTodos =>
           'Most painful / longest procrastinated → least painful / least procrastinated',
-        CategoryType.goalsAndAccomplishments =>
-          'Optional milestones (not repeatable habits)',
       };
 
   // -----------------------------
@@ -65,8 +60,7 @@ extension CategoryTypeX on CategoryType {
           'New behaviors you’re intentionally building that aren’t automatic yet. These need gentle reinforcement and a realistic target.',
         CategoryType.wantToMaintain =>
           'Established routines you already do fairly consistently, but still want to acknowledge and protect from burnout or decay.',
-        CategoryType.goalsAndAccomplishments =>
-          'Optional milestones that aren’t repeatable habits (ex: “graduate”, “hit a savings goal”).',
+
       };
 
   List<String> get setupExamples => switch (this) {
@@ -98,11 +92,6 @@ extension CategoryTypeX on CategoryType {
             'go to class/work',
             'exercise you already do',
             'sleep routine',
-          ],
-        CategoryType.goalsAndAccomplishments => const [
-            'graduate',
-            'hit \$X savings goal',
-            'squat 200 lb',
           ],
       };
 

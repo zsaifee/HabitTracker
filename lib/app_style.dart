@@ -36,8 +36,7 @@ class AppStyle {
         return cream;
       case FundType.funPurchase:
         return roastedPeach;
-      case FundType.saver:
-        return eucalyptus;
+      
     }
   }
 }

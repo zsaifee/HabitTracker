@@ -205,20 +205,9 @@ class _DailyPageState extends State<DailyPage> {
             const SizedBox(height: 8),
             _fundDepositButton(context, FundType.funPurchase, earnedDollars),
             const SizedBox(height: 8),
-            _fundDepositButton(context, FundType.saver, earnedDollars),
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 8),
-            const Text(
-              'v1 notes',
-              style: TextStyle(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              '• v1 uses 1 point = \$1\n'
-              '• you can add multipliers/bonuses later\n'
-              '• data is saved to your account',
-            ),
           ],
         ),
       ),

@@ -1,4 +1,5 @@
 // home_shell.dart (HabitHome)
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -12,6 +13,7 @@ import 'daily.dart';
 import 'funds.dart';
 import 'storage_service.dart';
 import 'setup_wizard.dart';
+import 'signup_onboarding.dart';
 
 class HabitHome extends StatefulWidget {
   const HabitHome({super.key});
@@ -23,6 +25,10 @@ class HabitHome extends StatefulWidget {
 class _HabitHomeState extends State<HabitHome> {
   late final StorageService _storage;
 
+  // gates
+  bool? _setupComplete;
+  bool? _onboardingComplete;
+
   int _tabIndex = 1;
 
   final List<Habit> _habits = [];
@@ -30,13 +36,9 @@ class _HabitHomeState extends State<HabitHome> {
 
   double _fundLilTreat = 0;
   double _fundFunPurchase = 0;
-  double _fundSaver = 0;
 
   String _selectedDateKey = _todayKey();
   bool _loading = true;
-
-  // setup gate
-  bool? _setupComplete;
 
   @override
   void initState() {
@@ -49,21 +51,24 @@ class _HabitHomeState extends State<HabitHome> {
     setState(() {
       _loading = true;
       _setupComplete = null;
+      _onboardingComplete = null;
     });
 
-    final done = await _storage.isSetupComplete();
+    final setupDone = await _storage.isSetupComplete();
+    final onboardingDone = await _storage.isOnboardingComplete();
     if (!mounted) return;
 
-    if (!done) {
-      setState(() {
-        _setupComplete = false;
-        _loading = false;
-      });
-      return;
-    }
+    setState(() {
+      _setupComplete = setupDone;
+      _onboardingComplete = onboardingDone;
+    });
 
-    setState(() => _setupComplete = true);
-    await _loadAll();
+    // only load the full app data if both gates are done
+    if (setupDone && onboardingDone) {
+      await _loadAll();
+    } else {
+      setState(() => _loading = false);
+    }
   }
 
   static String _todayKey() {
@@ -83,7 +88,6 @@ class _HabitHomeState extends State<HabitHome> {
 
       final lil = await _storage.loadFund(FundType.lilTreat);
       final fun = await _storage.loadFund(FundType.funPurchase);
-      final sav = await _storage.loadFund(FundType.saver);
 
       if (!mounted) return;
       setState(() {
@@ -97,7 +101,6 @@ class _HabitHomeState extends State<HabitHome> {
 
         _fundLilTreat = lil;
         _fundFunPurchase = fun;
-        _fundSaver = sav;
 
         _loading = false;
       });
@@ -108,7 +111,6 @@ class _HabitHomeState extends State<HabitHome> {
     }
   }
 
-  // ✅ Use saveHabits for normal edits (merge/upsert)
   Future<void> _persistHabits() async {
     await _storage.saveHabits(_habits);
   }
@@ -160,8 +162,7 @@ class _HabitHomeState extends State<HabitHome> {
         return _fundLilTreat;
       case FundType.funPurchase:
         return _fundFunPurchase;
-      case FundType.saver:
-        return _fundSaver;
+     
     }
   }
 
@@ -173,29 +174,47 @@ class _HabitHomeState extends State<HabitHome> {
       case FundType.funPurchase:
         _fundFunPurchase = v;
         break;
-      case FundType.saver:
-        _fundSaver = v;
-        break;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Gate into setup
+    // still checking gates
+    if (_setupComplete == null || _onboardingComplete == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // 1) setup wizard first
     if (_setupComplete == false) {
       return SetupWizard(
         onDone: () async {
           if (!mounted) return;
+          // saveSetupV2 already set setupComplete:true
           setState(() {
             _setupComplete = true;
-            _loading = true;
-            _tabIndex = 0; // optional: land on menu after setup
+            _onboardingComplete = false; // force onboarding next
+          });
+        },
+      );
+    }
+
+    // 2) then onboarding screens
+    if (_setupComplete == true && _onboardingComplete == false) {
+      return SignupOnboarding(
+        onDone: () async {
+          await _storage.setOnboardingComplete(true);
+          if (!mounted) return;
+          setState(() {
+            _onboardingComplete = true;
           });
           await _loadAll();
         },
       );
     }
 
+    // 3) finally, main app
     if (_loading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -262,15 +281,6 @@ class _HabitHomeState extends State<HabitHome> {
             tooltip: 'Sign out',
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
-              // Optional: if you want to hard reset local state on signout:
-              // if (!mounted) return;
-              // setState(() {
-              //   _tabIndex = 0;
-              //   _habits.clear();
-              //   _logsByDate.clear();
-              //   _setupComplete = null;
-              //   _loading = true;
-              // });
             },
           ),
         ],

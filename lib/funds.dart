@@ -123,16 +123,7 @@ class FundsPage extends StatelessWidget {
             FundType.funPurchase,
             'save up for a fun want (new shoes, skincare, class, etc).',
           ),
-          const SizedBox(height: 12),
-          card(
-            FundType.saver,
-            'big life stuff: trips, house, wedding, “i’ll be rich eventually” energy.',
-          ),
-          const SizedBox(height: 12),
-          const Padding(
-            padding: EdgeInsets.only(left: 4),
-            child: Text('Tip: funds are saved in your browser (localStorage) automatically.'),
-          ),
+          
         ],
       ),
     );

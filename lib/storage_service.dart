@@ -104,7 +104,11 @@ class StorageService {
 
     // upsert goals (doc id = behaviorId)
     for (final g in goals) {
-      batch.set(_goalsCol().doc(g.behaviorId), g.toMap(), SetOptions(merge: true));
+      batch.set(
+        _goalsCol().doc(g.behaviorId),
+        g.toMap(),
+        SetOptions(merge: true),
+      );
     }
 
     // mark setup complete
@@ -121,7 +125,8 @@ class StorageService {
     final snap = await _habitsCol().get();
 
     if (snap.docs.isNotEmpty) {
-      final habits = snap.docs.map((d) => Habit.fromDoc(d.id, d.data())).toList();
+      final habits =
+          snap.docs.map((d) => Habit.fromDoc(d.id, d.data())).toList();
       habits.sort((a, b) {
         final c = a.category.key.compareTo(b.category.key);
         if (c != 0) return c;
@@ -239,7 +244,9 @@ class StorageService {
   }
 
   Future<void> upsertDayLog(DayLog log) async {
-    await _logsCol().doc(log.dateKey).set(log.toJson(), SetOptions(merge: true));
+    await _logsCol()
+        .doc(log.dateKey)
+        .set(log.toJson(), SetOptions(merge: true));
   }
 
   // =========================
@@ -276,4 +283,16 @@ class StorageService {
     // If you *never* want defaults, just return [].
     return <Habit>[];
   }
+
+  Future<bool> isOnboardingComplete() async {
+  final snap = await _userDoc().get();
+  final data = snap.data();
+  if (data == null) return false;
+  return (data['onboardingComplete'] as bool?) ?? false;
+}
+
+Future<void> setOnboardingComplete(bool v) async {
+  await _userDoc().set({'onboardingComplete': v}, SetOptions(merge: true));
+}
+
 }
