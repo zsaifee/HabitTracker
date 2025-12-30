@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../app_style.dart';
-import '../storage_service.dart';
-import '../category_type.dart';
-import '../behavior.dart';
-import '../goal.dart';
+import 'app_style.dart';
+import 'storage_service.dart';
+import 'category_type.dart';
+import 'behavior.dart';
+import 'goal.dart';
 
 class SetupWizard extends StatefulWidget {
   final VoidCallback onDone;
@@ -131,7 +131,7 @@ Future<void> _skipRankingForNow() async {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
           Text('we’re going to set up your behavior categories', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
           SizedBox(height: 10),
-          Text('1) brain dump behaviors into categories\n2) rank them inside each category\n3) choose a gentle frequency target\n\nnothing is permanent — this is just “right now”.'),
+          Text('\n1) first we will explain what the different categories are and the best way to organize your behaviors \n2) for some of the categories, you will be prompted to add the frequency per week\n3) on the final screen you will be asked to rank the behaviors within the category baased on various criteria. you can skip this and come back to it later if needed\n\nnothing is permanent — this is just “right now”.'),
         ]),
       ),
     );
@@ -149,7 +149,6 @@ Future<void> _skipRankingForNow() async {
                 Text('how these categories work', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
                 SizedBox(height: 10),
                 Text(
-                  'Brain dump first — you’ll filter later in your habit focus view.\n\n'
                   'Try to write behaviors in an “individual behavior lens” (ex: “strength exercise”, not “gym 2x/week”). '
                   'That way you’re not locked to a specific schedule yet — you earn for whatever you actually do.',
                 ),
@@ -218,7 +217,6 @@ Future<void> _skipRankingForNow() async {
             ),
             const SizedBox(height: 10),
 
-            // ✅ Header row: puts the frequency label on the right, above the controls
             if (c.usesFrequency) ...[
               Row(
                 children: const [
@@ -239,7 +237,6 @@ Future<void> _skipRankingForNow() async {
               const SizedBox(height: 6),
             ],
 
-            // ✅ Behavior rows
             for (final b in list)
               Row(
                 children: [

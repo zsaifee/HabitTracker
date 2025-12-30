@@ -11,7 +11,7 @@ import 'point_menu.dart';
 import 'daily.dart';
 import 'funds.dart';
 import 'storage_service.dart';
-import 'Setup/setup_wizard.dart';
+import 'setup_wizard.dart';
 
 class HabitHome extends StatefulWidget {
   const HabitHome({super.key});
