@@ -162,7 +162,6 @@ class _HabitHomeState extends State<HabitHome> {
         return _fundLilTreat;
       case FundType.funPurchase:
         return _fundFunPurchase;
-     
     }
   }
 
@@ -176,6 +175,41 @@ class _HabitHomeState extends State<HabitHome> {
         break;
     }
   }
+  
+  Future<void> _toggleHabit(String habitId, bool checked) async {
+    final log = _currentLog();
+
+    setState(() {
+      if (checked) {
+        log.completedHabitIds.add(habitId);
+      } else {
+        log.completedHabitIds.remove(habitId);
+      }
+    });
+
+    await _persistLogs();
+  }
+
+  Future<void> _removeCompletedOneAndDonesForCurrentDay() async {
+  final log = _currentLog();
+  final completed = Set<String>.from(log.completedHabitIds);
+
+  final toDelete = <String>[];
+  for (final h in _habits) {
+    if (h.oneAndDone && completed.contains(h.id)) {
+      toDelete.add(h.id);
+    }
+  }
+
+  for (final id in toDelete) {
+    await _deleteHabit(id);
+  }
+
+  // since _deleteHabit removes ids from logs too, persist logs as well
+  await _persistLogs();
+}
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -233,17 +267,7 @@ class _HabitHomeState extends State<HabitHome> {
         onPickDate: (key) => setState(() => _selectedDateKey = key),
         log: _currentLog(),
         earnedPoints: _earnedPointsForLog(_currentLog()),
-        onToggleHabit: (habitId, checked) async {
-          final log = _currentLog();
-          setState(() {
-            if (checked) {
-              log.completedHabitIds.add(habitId);
-            } else {
-              log.completedHabitIds.remove(habitId);
-            }
-          });
-          await _persistLogs();
-        },
+        onToggleHabit: _toggleHabit, // UPDATED: use the new handler
         onNoteChanged: (text) async {
           final log = _currentLog();
           setState(() => log.note = text);
@@ -252,12 +276,17 @@ class _HabitHomeState extends State<HabitHome> {
         onDeposit: (fund, amount) async {
           setState(() => _setFundValue(fund, _fundValue(fund) + amount));
           await _storage.saveFund(fund, _fundValue(fund));
-        },
+
+          // AFTER deposit, remove completed one-and-done todos
+          await _removeCompletedOneAndDonesForCurrentDay();
+          },
+
       ),
       FundsPage(
         fundValue: (t) => _fundValue(t),
         onAdjust: (t, delta) async {
-          setState(() => _setFundValue(t, (_fundValue(t) + delta).clamp(0, 1e12)));
+          setState(() =>
+              _setFundValue(t, (_fundValue(t) + delta).clamp(0, 1e12)));
           await _storage.saveFund(t, _fundValue(t));
         },
       ),

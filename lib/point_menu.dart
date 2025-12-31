@@ -26,6 +26,11 @@ class PointMenuPage extends StatelessWidget {
     return maxRank + 1;
   }
 
+  bool _isOneAndDoneCategory(CategoryType c) {
+    // Your "to do’s you’ve been putting off" category
+    return c == CategoryType.putOffTodos;
+  }
+
   @override
   Widget build(BuildContext context) {
     // group + sort
@@ -78,6 +83,7 @@ class PointMenuPage extends StatelessWidget {
                               '${h.points} pts',
                               if (h.isExercise) 'exercise',
                               if ((h.reasoning ?? '').trim().isNotEmpty) '“${h.reasoning}”',
+                              if (h.oneAndDone) 'one-and-done',
                             ].join(' • '),
                           ),
                           trailing: Wrap(
@@ -143,6 +149,7 @@ class PointMenuPage extends StatelessWidget {
                     points: 1,
                     category: defaultCat,
                     rank: _nextRankFor(defaultCat),
+                    // oneAndDone inferred by Habit ctor; defaultCat => false
                   );
 
                   habits.add(newHabit);
@@ -166,7 +173,7 @@ class PointMenuPage extends StatelessWidget {
 
     bool isExercise = habit.isExercise;
 
-    // NEW: local dialog state for category
+    // local dialog state for category
     CategoryType selectedCat = habit.category;
 
     await showDialog<void>(
@@ -190,7 +197,6 @@ class PointMenuPage extends StatelessWidget {
                     decoration: const InputDecoration(labelText: 'points'),
                   ),
 
-                  // NEW: category picker
                   DropdownButtonFormField<CategoryType>(
                     initialValue: selectedCat,
                     decoration: const InputDecoration(labelText: 'category'),
@@ -242,13 +248,16 @@ class PointMenuPage extends StatelessWidget {
     habit.reasoning = reasonCtrl.text.trim().isEmpty ? null : reasonCtrl.text.trim();
     habit.isExercise = isExercise;
 
-    // NEW: if category changed, update + assign rank inside that category
+    // If category changed, update + assign rank inside that category
     if (habit.category != selectedCat) {
       habit.category = selectedCat;
       habit.rank = _nextRankFor(selectedCat, excludeId: habit.id);
     }
 
-    // NEW: if rank is "placeholder-y", set it to a real next rank
+    // IMPORTANT: keep oneAndDone in sync with category
+    habit.oneAndDone = _isOneAndDoneCategory(habit.category);
+
+    // If rank is placeholder-y, set it to a real next rank
     if (habit.rank <= 0 || habit.rank >= 9999) {
       habit.rank = _nextRankFor(habit.category, excludeId: habit.id);
     }
