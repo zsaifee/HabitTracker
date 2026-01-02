@@ -189,13 +189,18 @@ class PointMenuPage extends StatelessWidget {
                 children: [
                   TextField(
                     controller: nameCtrl,
-                    decoration: const InputDecoration(labelText: 'name'),
+                    decoration: const InputDecoration(labelText: 'name', labelStyle:  TextStyle(
+      height: 1.8, // 👈 more space between label & field
+    ),),
+                    
                   ),
+                  const SizedBox(height: 20),
                   TextField(
                     controller: ptsCtrl,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(labelText: 'points'),
                   ),
+                  const SizedBox(height: 20),
 
                   DropdownButtonFormField<CategoryType>(
                     initialValue: selectedCat,
@@ -206,7 +211,9 @@ class PointMenuPage extends StatelessWidget {
                           value: c,
                           child: Text(c.title),
                         ),
+
                     ],
+
                     onChanged: (c) {
                       if (c == null) return;
                       setState(() => selectedCat = c);

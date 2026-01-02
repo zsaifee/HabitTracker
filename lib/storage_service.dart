@@ -295,4 +295,61 @@ Future<void> setOnboardingComplete(bool v) async {
   await _userDoc().set({'onboardingComplete': v}, SetOptions(merge: true));
 }
 
+
+  // =========================
+  // Fun Purchase Goal (stored in funds/main)
+  // =========================
+
+  Future<({String name, double price})> loadFunPurchaseGoal() async {
+    final snap = await _fundsDoc().get();
+    final data = snap.data();
+    if (data == null) return (name: '', price: 0.0);
+
+    final rawName = data['funGoalName'];
+    final rawPrice = data['funGoalPrice'];
+
+    final name = rawName is String ? rawName : '';
+    final price = rawPrice is num ? rawPrice.toDouble() : 0.0;
+
+    return (name: name, price: price);
+  }
+
+  Future<void> saveFunPurchaseGoal({
+    required String name,
+    required double price,
+  }) async {
+    await _fundsDoc().set(
+      {
+        'funGoalName': name,
+        'funGoalPrice': price,
+      },
+      SetOptions(merge: true),
+    );
+  }
+
+    // =========================
+  // Fun Purchase Goals (stored in funds/main)
+  // =========================
+
+  Future<List<Map<String, dynamic>>> loadFunPurchaseGoalsRaw() async {
+    final snap = await _fundsDoc().get();
+    final data = snap.data();
+    if (data == null) return <Map<String, dynamic>>[];
+
+    final raw = data['funGoals'];
+    if (raw is List) {
+      return raw
+          .whereType<Map>()
+          .map((m) => Map<String, dynamic>.from(m))
+          .toList();
+    }
+    return <Map<String, dynamic>>[];
+  }
+
+  Future<void> saveFunPurchaseGoalsRaw(List<Map<String, dynamic>> goals) async {
+    await _fundsDoc().set(
+      {'funGoals': goals},
+      SetOptions(merge: true),
+    );
+  }
 }
