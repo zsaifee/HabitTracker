@@ -248,7 +248,6 @@ class _HabitHomeState extends State<HabitHome> {
       );
     }
 
-    // 3) finally, main app
     if (_loading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -267,7 +266,7 @@ class _HabitHomeState extends State<HabitHome> {
         onPickDate: (key) => setState(() => _selectedDateKey = key),
         log: _currentLog(),
         earnedPoints: _earnedPointsForLog(_currentLog()),
-        onToggleHabit: _toggleHabit, // UPDATED: use the new handler
+        onToggleHabit: _toggleHabit,
         onNoteChanged: (text) async {
           final log = _currentLog();
           setState(() => log.note = text);
@@ -294,7 +293,7 @@ class _HabitHomeState extends State<HabitHome> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("the habit bank"),
+        title: const Text("pockt change"),
         centerTitle: false,
         foregroundColor: Colors.white,
         backgroundColor: Colors.transparent,

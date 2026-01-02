@@ -188,7 +188,7 @@ class _FundsPageState extends State<FundsPage> {
                 Row(
                   children: [
                     const Text(
-                      'Fun purchase goals',
+                      'fun purchase goals',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
                     ),
                     const Spacer(),
@@ -200,7 +200,7 @@ class _FundsPageState extends State<FundsPage> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                Text('Saved: \$${funBalance.toStringAsFixed(2)}'),
+                Text('saved: \$${funBalance.toStringAsFixed(2)}'),
                 const SizedBox(height: 12),
 
                 // list scrolls
@@ -208,7 +208,7 @@ class _FundsPageState extends State<FundsPage> {
                   child: _goals.isEmpty
                       ? const Align(
                           alignment: Alignment.topLeft,
-                          child: Text('No goals yet — add one to track progress.'),
+                          child: Text('no goals yet — add one to track progress'),
                         )
                       : ListView.builder(
                           itemCount: _goals.length,
