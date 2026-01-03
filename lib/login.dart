@@ -22,7 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLogin = true;
   bool _busy = false;
   String? _err;
-  String? _info; // ✅ NEW: success/info message
+  String? _info; // success/info message
 
   @override
   void dispose() {
@@ -35,7 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() {
       _busy = true;
       _err = null;
-      _info = null; // clear info each submit
+      _info = null;
     });
 
     try {
@@ -58,33 +58,24 @@ class _LoginScreenState extends State<LoginScreen> {
         await _authSvc.signUp(email, pw);
 
         if (!mounted) return;
-
         FocusScope.of(context).unfocus();
 
         setState(() {
-          _info = 'Verification email sent to $email. Check inbox , then log in.';
+          _info = 'Verification email sent to $email. Check inbox, then log in.';
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Verification email sent to $email.'),
-          ),
+          SnackBar(content: Text('Verification email sent to $email.')),
         );
 
         return; // stop here so we don’t “continue” as logged-in
       }
     } on FirebaseAuthException catch (e) {
-      setState(() {
-        _err = _prettyAuthError(e);
-      });
+      setState(() => _err = _prettyAuthError(e));
     } catch (_) {
-      setState(() {
-        _err = 'Something went wrong. Try again.';
-      });
+      setState(() => _err = 'Something went wrong. Try again.');
     } finally {
-      if (mounted) {
-        setState(() => _busy = false);
-      }
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -123,11 +114,22 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      await _authSvc.resendVerificationEmail();
+      final email = _emailCtrl.text.trim();
+      final pw = _pwCtrl.text;
+
+      if (email.isEmpty || pw.isEmpty) {
+        throw FirebaseAuthException(
+          code: 'invalid-input',
+          message: 'Type your email and password first.',
+        );
+      }
+
+      await _authSvc.resendVerificationEmailWithPassword(email: email, password: pw);
 
       if (!mounted) return;
+      setState(() => _info = 'Verification email resent to $email.');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Verification email resent.')),
+        SnackBar(content: Text('Verification email resent to $email.')),
       );
     } on FirebaseAuthException catch (e) {
       setState(() => _err = _prettyAuthError(e));
@@ -161,6 +163,8 @@ class _LoginScreenState extends State<LoginScreen> {
         return 'Please verify your email (check inbox/spam) before logging in.';
       case 'no-user':
         return 'No signed-in user.';
+      case 'already-verified':
+        return 'That email is already verified. Try logging in.';
       default:
         return e.message ?? 'Auth error: ${e.code}';
     }
@@ -180,12 +184,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   _Header(isLogin: _isLogin),
                   const SizedBox(height: 18),
-
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min, // nice inside scroll
                         children: [
                           TextField(
                             controller: _emailCtrl,
@@ -198,7 +202,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           const SizedBox(height: 12),
-
                           TextField(
                             controller: _pwCtrl,
                             obscureText: true,
@@ -210,17 +213,24 @@ class _LoginScreenState extends State<LoginScreen> {
                               prefixIcon: Icon(Icons.lock_outline),
                             ),
                           ),
-
                           const SizedBox(height: 10),
 
+                          // ✅ fixed: no Expanded inside scroll view
                           Row(
                             children: [
-                              Expanded(
-                                child: TextButton(
-                                  onPressed: _busy ? null : _forgotPassword,
-                                  child: const Text('Forgot password?'),
-                                ),
-                              ),
+                              if (_isLogin)
+                                Flexible(
+                                  fit: FlexFit.loose,
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: TextButton(
+                                      onPressed: _busy ? null : _forgotPassword,
+                                      child: const Text('Forgot password?'),
+                                    ),
+                                  ),
+                                )
+                              else
+                                const Spacer(),
                               const SizedBox(width: 8),
                               _ModeChip(
                                 isLogin: _isLogin,
@@ -235,13 +245,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             ],
                           ),
 
-                          // ✅ Info banner
                           if (_info != null) ...[
                             const SizedBox(height: 6),
                             _InfoPill(message: _info!),
                           ],
 
-                          // Error banner
                           if (_err != null) ...[
                             const SizedBox(height: 6),
                             _ErrorPill(message: _err!),
@@ -273,9 +281,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 14),
-
                   Text(
                     'Tip: use the same email/password on web + phone so your “habit bank” stays synced.',
                     textAlign: TextAlign.center,
@@ -312,7 +318,7 @@ class _Header extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         Text(
-          'the habit bank',
+          'pockt change',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 28),
           textAlign: TextAlign.center,
         ),
@@ -352,7 +358,13 @@ class _ModeChip extends StatelessWidget {
           children: [
             Text(label, style: const TextStyle(color: Colors.black54)),
             const SizedBox(width: 6),
-            Text(action, style: const TextStyle(fontWeight: FontWeight.w800, color: AppStyle.primary)),
+            Text(
+              action,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                color: AppStyle.primary,
+              ),
+            ),
           ],
         ),
       ),
