@@ -31,6 +31,9 @@ class PointMenuPage extends StatelessWidget {
     return c == CategoryType.putOffTodos;
   }
 
+  int _defaultPoints(CategoryType c) => Habit.defaultPointsForCategory(c);
+  int _clampPoints(int v) => Habit.clampPoints(v);
+
   @override
   Widget build(BuildContext context) {
     // group + sort
@@ -146,7 +149,7 @@ class PointMenuPage extends StatelessWidget {
                   final newHabit = Habit(
                     id: 'h_${DateTime.now().microsecondsSinceEpoch}',
                     name: 'new habit',
-                    points: 1,
+                    points: _defaultPoints(defaultCat), // ✅ start at default
                     category: defaultCat,
                     rank: _nextRankFor(defaultCat),
                     // oneAndDone inferred by Habit ctor; defaultCat => false
@@ -168,13 +171,15 @@ class PointMenuPage extends StatelessWidget {
 
   Future<void> _editHabitDialog(BuildContext context, Habit habit) async {
     final nameCtrl = TextEditingController(text: habit.name);
-    final ptsCtrl = TextEditingController(text: habit.points.toString());
     final reasonCtrl = TextEditingController(text: habit.reasoning ?? '');
 
     bool isExercise = habit.isExercise;
 
-    // local dialog state for category
+    // local dialog state
     CategoryType selectedCat = habit.category;
+
+    // points state (slider)
+    int points = _clampPoints(habit.points);
 
     await showDialog<void>(
       context: context,
@@ -189,17 +194,38 @@ class PointMenuPage extends StatelessWidget {
                 children: [
                   TextField(
                     controller: nameCtrl,
-                    decoration: const InputDecoration(labelText: 'name', labelStyle:  TextStyle(
-      height: 1.8, // 👈 more space between label & field
-    ),),
-                    
+                    decoration: const InputDecoration(
+                      labelText: 'name',
+                      labelStyle: TextStyle(height: 1.8), // more space
+                    ),
                   ),
                   const SizedBox(height: 20),
-                  TextField(
-                    controller: ptsCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'points'),
+
+                  // ✅ points slider
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Points: $points',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
                   ),
+                  Slider(
+                    value: points.toDouble(),
+                    min: 1,
+                    max: 10,
+                    divisions: 9,
+                    label: '$points pts',
+                    onChanged: (v) => setState(() => points = v.round()),
+                  ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Default for this category is ${_defaultPoints(selectedCat)} '
+                      '(you can customize 1–10).',
+                      style: const TextStyle(color: Colors.black54),
+                    ),
+                  ),
+
                   const SizedBox(height: 20),
 
                   DropdownButtonFormField<CategoryType>(
@@ -211,20 +237,34 @@ class PointMenuPage extends StatelessWidget {
                           value: c,
                           child: Text(c.title),
                         ),
-
                     ],
-
                     onChanged: (c) {
                       if (c == null) return;
-                      setState(() => selectedCat = c);
+
+                      // If the user hasn't customized points (still on old default),
+                      // auto-switch to the new category default.
+                      final oldCat = selectedCat;
+                      final oldDefault = _defaultPoints(oldCat);
+                      final newDefault = _defaultPoints(c);
+
+                      setState(() {
+                        selectedCat = c;
+
+                        if (points == oldDefault) {
+                          points = newDefault;
+                        }
+                      });
                     },
                   ),
+
+                  const SizedBox(height: 12),
 
                   TextField(
                     controller: reasonCtrl,
                     decoration: const InputDecoration(labelText: 'reasoning (optional)'),
                   ),
                   const SizedBox(height: 8),
+
                   SwitchListTile(
                     value: isExercise,
                     onChanged: (v) => setState(() => isExercise = v),
@@ -249,9 +289,7 @@ class PointMenuPage extends StatelessWidget {
     final newName = nameCtrl.text.trim();
     if (newName.isNotEmpty) habit.name = newName;
 
-    final parsedPts = int.tryParse(ptsCtrl.text.trim());
-    if (parsedPts != null) habit.points = parsedPts;
-
+    habit.points = _clampPoints(points);
     habit.reasoning = reasonCtrl.text.trim().isEmpty ? null : reasonCtrl.text.trim();
     habit.isExercise = isExercise;
 
@@ -261,7 +299,7 @@ class PointMenuPage extends StatelessWidget {
       habit.rank = _nextRankFor(selectedCat, excludeId: habit.id);
     }
 
-    // IMPORTANT: keep oneAndDone in sync with category
+    // keep oneAndDone in sync with category
     habit.oneAndDone = _isOneAndDoneCategory(habit.category);
 
     // If rank is placeholder-y, set it to a real next rank

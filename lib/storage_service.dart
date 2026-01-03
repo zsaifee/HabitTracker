@@ -45,6 +45,25 @@ class StorageService {
       _userDoc().collection('goals');
 
   // =========================
+  // Points defaults (V3)
+  // =========================
+
+  int defaultPointsForCategory(CategoryType c) {
+    switch (c) {
+      case CategoryType.putOffTodos:
+        return 5; // avoided tasks
+      case CategoryType.feelGoodIrregular:
+        return 3; // amazing when done
+      case CategoryType.wantToStart:
+        return 2; // building habits
+      case CategoryType.wantToMaintain:
+        return 1; // protect routines
+    }
+  }
+
+  int clampPoints(int v) => v.clamp(1, 10);
+
+  // =========================
   // Setup gate
   // =========================
 
@@ -87,12 +106,14 @@ class StorageService {
       batch.set(_behaviorsCol().doc(b.id), b.toMap(), SetOptions(merge: true));
 
       // habits mirror for the rest of the app
+      final pts = clampPoints(defaultPointsForCategory(b.category));
+
       batch.set(
         _habitsCol().doc(b.id),
         Habit(
           id: b.id,
           name: b.name,
-          points: 1,
+          points: pts, // ✅ default by category
           category: b.category,
           rank: b.rank,
           isExercise: false,
@@ -159,7 +180,7 @@ class StorageService {
       final h = Habit(
         id: b.id,
         name: b.name,
-        points: 1,
+        points: clampPoints(defaultPointsForCategory(b.category)),
         category: b.category,
         rank: b.rank,
       );
@@ -284,17 +305,20 @@ class StorageService {
     return <Habit>[];
   }
 
+  // =========================
+  // Onboarding (you had this)
+  // =========================
+
   Future<bool> isOnboardingComplete() async {
-  final snap = await _userDoc().get();
-  final data = snap.data();
-  if (data == null) return false;
-  return (data['onboardingComplete'] as bool?) ?? false;
-}
+    final snap = await _userDoc().get();
+    final data = snap.data();
+    if (data == null) return false;
+    return (data['onboardingComplete'] as bool?) ?? false;
+  }
 
-Future<void> setOnboardingComplete(bool v) async {
-  await _userDoc().set({'onboardingComplete': v}, SetOptions(merge: true));
-}
-
+  Future<void> setOnboardingComplete(bool v) async {
+    await _userDoc().set({'onboardingComplete': v}, SetOptions(merge: true));
+  }
 
   // =========================
   // Fun Purchase Goal (stored in funds/main)
@@ -327,7 +351,7 @@ Future<void> setOnboardingComplete(bool v) async {
     );
   }
 
-    // =========================
+  // =========================
   // Fun Purchase Goals (stored in funds/main)
   // =========================
 
@@ -351,5 +375,44 @@ Future<void> setOnboardingComplete(bool v) async {
       {'funGoals': goals},
       SetOptions(merge: true),
     );
+  }
+
+  // =========================
+  // Habit create / update (schema-consistent)
+  // =========================
+
+  Future<String> createHabit({
+    required String name,
+    required CategoryType category,
+    int? points, // optional override
+    int rank = 0,
+    bool isExercise = false,
+    String? reasoning,
+    bool? oneAndDone,
+  }) async {
+    final doc = _habitsCol().doc(); // generates id
+    final p = clampPoints(points ?? defaultPointsForCategory(category));
+
+    final h = Habit(
+      id: doc.id,
+      name: name,
+      points: p,
+      category: category,
+      rank: rank,
+      isExercise: isExercise,
+      reasoning: reasoning,
+      oneAndDone: oneAndDone,
+    );
+
+    await doc.set(h.toJson(), SetOptions(merge: true));
+    return doc.id;
+  }
+
+  Future<void> updateHabit(Habit h) async {
+    // clamp points before saving
+    final fixed = h.copyWith(points: clampPoints(h.points));
+    await _habitsCol()
+        .doc(fixed.id)
+        .set(fixed.toJson(), SetOptions(merge: true));
   }
 }
