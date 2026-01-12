@@ -81,7 +81,7 @@ class _SetupWizardState extends State<SetupWizard> {
 
     return Column(
       children: [
-        Expanded(child: _stepView()),
+        Expanded(child: _stepview()),
         const SizedBox(height: 12),
         Row(
           children: [
@@ -91,11 +91,11 @@ class _SetupWizardState extends State<SetupWizard> {
                 child: const Text('back'),
               ),
 
-            // ✅ Skip only on ranking step
+            // skip only on ranking step
             if (_step == 3) ...[
               const SizedBox(width: 8),
               TextButton(
-                onPressed: _skipRankingForNow,
+                onPressed: _skiprankingfornow,
                 child: const Text('skip for now'),
               ),
             ],
@@ -103,7 +103,7 @@ class _SetupWizardState extends State<SetupWizard> {
             const Spacer(),
 
             FilledButton(
-              onPressed: _onNext,
+              onPressed: _onnext,
               child: Text(_step == 3 ? 'finish' : 'next'),
             ),
           ],
@@ -112,23 +112,23 @@ class _SetupWizardState extends State<SetupWizard> {
     );
   }
 
-  Widget _stepView() {
+  Widget _stepview() {
     switch (_step) {
       case 0:
         return _intro();
       case 1:
-        return _categoryInstructions();
+        return _categoryinstructions();
       case 2:
-        return _brainDump();
+        return _braindump();
       case 3:
-        return _rankAndFrequency();
+        return _rankandfrequency();
       default:
         return _intro();
     }
   }
 
-  Future<void> _skipRankingForNow() async {
-    await _onNext();
+  Future<void> _skiprankingfornow() async {
+    await _onnext();
   }
 
   Widget _intro() {
@@ -155,7 +155,7 @@ class _SetupWizardState extends State<SetupWizard> {
     );
   }
 
-  Widget _categoryInstructions() {
+  Widget _categoryinstructions() {
     return ListView(
       children: [
         Card(
@@ -170,8 +170,8 @@ class _SetupWizardState extends State<SetupWizard> {
                 ),
                 SizedBox(height: 10),
                 Text(
-                  'Try to write behaviors in an “individual behavior lens” (ex: “strength exercise”, not “gym 2x/week”). '
-                  'That way you’re not locked to a specific schedule yet — you earn for whatever you actually do.',
+                  'try to write behaviors in an “individual behavior lens” (ex: “strength exercise”, not “gym 2x/week”). '
+                  'that way you’re not locked to a specific schedule yet — you earn for whatever you actually do.',
                 ),
               ],
             ),
@@ -186,24 +186,24 @@ class _SetupWizardState extends State<SetupWizard> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    c.title,
+                    c.title.toLowerCase(),
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 8),
-                  Text(c.setupDescription),
+                  Text(c.setupDescription.toLowerCase()),
                   const SizedBox(height: 10),
                   const Text('examples', style: TextStyle(fontWeight: FontWeight.w800)),
                   const SizedBox(height: 6),
                   ...c.setupExamples.map(
                     (e) => Padding(
                       padding: const EdgeInsets.only(bottom: 4),
-                      child: Text('• $e'),
+                      child: Text('• ${e.toLowerCase()}'),
                     ),
                   ),
                   const SizedBox(height: 10),
-                  Text('frequency: ${c.setupFrequencyNote}'),
+                  Text('frequency: ${c.setupFrequencyNote.toLowerCase()}'),
                   const SizedBox(height: 6),
-                  Text('rank: ${c.rankingPrompt}'),
+                  Text('rank: ${c.rankingPrompt.toLowerCase()}'),
                 ],
               ),
             ),
@@ -214,18 +214,18 @@ class _SetupWizardState extends State<SetupWizard> {
     );
   }
 
-  Widget _brainDump() {
+  Widget _braindump() {
     return ListView(
       children: [
         for (final c in _setupCats) ...[
-          _categoryCard(c),
+          _categorycard(c),
           const SizedBox(height: 12),
         ],
       ],
     );
   }
 
-  Widget _categoryCard(CategoryType c) {
+  Widget _categorycard(CategoryType c) {
     final list = _byCat[c]!;
     const freqColWidth = 150.0;
 
@@ -236,12 +236,12 @@ class _SetupWizardState extends State<SetupWizard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              c.title,
+              c.title.toLowerCase(),
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 6),
             const Text(
-              'Add behaviors in a “behavior lens” (ex: “strength exercise”, not “gym 2x/week”).',
+              'add behaviors in a “behavior lens” (ex: “strength exercise”, not “gym 2x/week”).',
               style: TextStyle(color: Colors.black),
             ),
             const SizedBox(height: 10),
@@ -249,13 +249,13 @@ class _SetupWizardState extends State<SetupWizard> {
             if (c.usesFrequency) ...[
               Row(
                 children: const [
-                  Expanded(child: SizedBox()), // left column header empty
+                  Expanded(child: SizedBox()),
                   SizedBox(
                     width: freqColWidth,
                     child: Align(
                       alignment: Alignment.centerRight,
                       child: Text(
-                        'Frequency (per week)',
+                        'frequency (per week)',
                         textAlign: TextAlign.right,
                         style: TextStyle(fontWeight: FontWeight.w800),
                       ),
@@ -269,7 +269,7 @@ class _SetupWizardState extends State<SetupWizard> {
             for (final b in list)
               Row(
                 children: [
-                  Expanded(child: Text(b.name)),
+                  Expanded(child: Text(b.name.toLowerCase())),
 
                   if (c.usesFrequency)
                     SizedBox(
@@ -314,12 +314,12 @@ class _SetupWizardState extends State<SetupWizard> {
               alignment: Alignment.centerRight,
               child: TextButton.icon(
                 onPressed: () async {
-                  final name = await _promptForText(
+                  final name = await _promptfortext(
                     title: 'add behavior',
                     hint: 'ex: strength exercise',
                   );
                   if (name == null || name.trim().isEmpty) return;
-                  setState(() => list.add(_BehaviorDraft(name.trim())));
+                  setState(() => list.add(_BehaviorDraft(name.trim().toLowerCase())));
                 },
                 icon: const Icon(Icons.add),
                 label: const Text('add'),
@@ -331,7 +331,7 @@ class _SetupWizardState extends State<SetupWizard> {
     );
   }
 
-  Widget _rankAndFrequency() {
+  Widget _rankandfrequency() {
     return ListView(
       children: [
         for (final c in _setupCats) ...[
@@ -342,16 +342,16 @@ class _SetupWizardState extends State<SetupWizard> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    c.title,
+                    c.title.toLowerCase(),
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Ranking axis:\n${c.rankingPrompt}',
+                    'ranking axis:\n${c.rankingPrompt.toLowerCase()}',
                     style: const TextStyle(color: Colors.black),
                   ),
                   const SizedBox(height: 10),
-                  _reorderOnlyList(c),
+                  _reorderonlylist(c),
                 ],
               ),
             ),
@@ -362,12 +362,11 @@ class _SetupWizardState extends State<SetupWizard> {
     );
   }
 
-  Widget _reorderOnlyList(CategoryType c) {
+  Widget _reorderonlylist(CategoryType c) {
     final list = _byCat[c]!;
     if (list.isEmpty) {
-      return const Text('No behaviors added here.', style: TextStyle(color: Colors.black));
+      return const Text('no behaviors added here.', style: TextStyle(color: Colors.black));
     }
-
     return ReorderableListView(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -381,15 +380,15 @@ class _SetupWizardState extends State<SetupWizard> {
       children: [
         for (int i = 0; i < list.length; i++)
           ListTile(
-            key: ValueKey('${c.key}-$i-${list[i].name}'),
+            key: ValueKey('${c.key}-$i-${list[i].name}'.toLowerCase()),
             leading: const Icon(Icons.drag_handle),
-            title: Text('${i + 1}. ${list[i].name}'),
+            title: Text('${i + 1}. ${list[i].name}'.toLowerCase()),
           ),
       ],
     );
   }
 
-  Future<void> _onNext() async {
+  Future<void> _onnext() async {
     if (_step < 3) {
       setState(() => _step++);
       return;
@@ -408,12 +407,12 @@ class _SetupWizardState extends State<SetupWizard> {
       for (final c in _setupCats) {
         final list = _byCat[c]!;
         for (int i = 0; i < list.length; i++) {
-          final id = FirebaseFirestore.instance.collection('_').doc().id; // random id
+          final id = FirebaseFirestore.instance.collection('_').doc().id;
 
           behaviors.add(
             Behavior(
               id: id,
-              name: list[i].name,
+              name: list[i].name.toLowerCase(),
               category: c,
               rank: i + 1,
             ),
@@ -429,7 +428,6 @@ class _SetupWizardState extends State<SetupWizard> {
       }
 
       await _storage.saveSetupV2(behaviors: behaviors, goals: goals);
-      // saveSetupV2 already sets setupComplete: true
 
       if (!mounted) return;
       widget.onDone();
@@ -437,20 +435,20 @@ class _SetupWizardState extends State<SetupWizard> {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _err = 'Setup failed: $e';
+        _err = 'setup failed: $e';
       });
     }
   }
 
-  Future<String?> _promptForText({required String title, required String hint}) async {
+  Future<String?> _promptfortext({required String title, required String hint}) async {
     final ctrl = TextEditingController();
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(title),
+        title: Text(title.toLowerCase()),
         content: TextField(
           controller: ctrl,
-          decoration: InputDecoration(hintText: hint),
+          decoration: InputDecoration(hintText: hint.toLowerCase()),
           autofocus: true,
         ),
         actions: [

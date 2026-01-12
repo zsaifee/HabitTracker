@@ -52,7 +52,7 @@ class _DailyPageState extends State<DailyPage> {
   void didUpdateWidget(covariant DailyPage oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    // When date changes, update the note field to match the new day's log.
+    // when date changes, update the note field to match the new day's log.
     if (oldWidget.dateKey != widget.dateKey) {
       final newText = widget.log.note;
       if (_noteCtrl.text != newText) {
@@ -70,7 +70,7 @@ class _DailyPageState extends State<DailyPage> {
     super.dispose();
   }
 
-  // Display: "tue, dec 2" (lowercase)
+  // display: "tue, dec 2" (lowercase)
   String _formattedDate(String dateKey) {
     final date = DateTime.parse(dateKey); // expects yyyy-MM-dd
     return DateFormat('EEE, MMM d').format(date).toLowerCase();
@@ -131,21 +131,17 @@ class _DailyPageState extends State<DailyPage> {
               children: [
                 Text(
                   'today',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleLarge
-                      ?.copyWith(fontSize: 26),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 26),
                 ),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: const Color(0xFFEDE9FF),
                     borderRadius: BorderRadius.circular(999),
                     border: Border.all(color: const Color(0xFFD7CFFF)),
                   ),
                   child: Text(
-                    'earned \$${earnedDollars.toStringAsFixed(0)} ✨',
+                    'earned \$${earnedDollars.toStringAsFixed(0)}',
                     style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
                 ),
@@ -169,9 +165,9 @@ class _DailyPageState extends State<DailyPage> {
               return CheckboxListTile(
                 value: checked,
                 onChanged: (v) => widget.onToggleHabit(h.id, v ?? false),
-                title: Text(h.isExercise ? '🏃 ${h.name}' : h.name),
+                title: Text(h.name),
                 subtitle: Text(
-                  '${h.points} pts${h.isExercise ? ' • exercise' : ''}',
+                  '\$${h.points}${h.isExercise ? ' • exercise' : ''}',
                 ),
                 controlAffinity: ListTileControlAffinity.leading,
               );
@@ -229,44 +225,43 @@ class _DailyPageState extends State<DailyPage> {
           foregroundColor: Colors.black87,
         ),
         onPressed: amount <= 0
-    ? null
-    : () async {
-        final messenger = ScaffoldMessenger.of(context);
+            ? null
+            : () async {
+                final messenger = ScaffoldMessenger.of(context);
 
-        // snapshot what was checked *at the moment of deposit*
-        final toClear = widget.log.completedHabitIds.toList(growable: false);
+                // snapshot what was checked at the moment of deposit
+                final toClear = widget.log.completedHabitIds.toList(growable: false);
 
-        try {
-          await widget.onDeposit(fund, amount);
-          if (!mounted) return;
+                try {
+                  await widget.onDeposit(fund, amount);
+                  if (!mounted) return;
 
-          // uncheck everything that was counted
-          await Future.wait(
-            toClear.map((id) => widget.onToggleHabit(id, false)),
-          );
-          if (!mounted) return;
+                  // uncheck everything that was counted
+                  await Future.wait(
+                    toClear.map((id) => widget.onToggleHabit(id, false)),
+                  );
+                  if (!mounted) return;
 
-          messenger.showSnackBar(
-            SnackBar(
-              behavior: SnackBarBehavior.floating,
-              backgroundColor: Colors.black87,
-              content: Text(
-                'deposited \$${amount.toStringAsFixed(0)} '
-                'into ${fund.label} ✨',
-              ),
-            ),
-          );
-        } catch (e) {
-          if (!mounted) return;
-          messenger.showSnackBar(
-            SnackBar(
-              behavior: SnackBarBehavior.floating,
-              backgroundColor: Colors.black87,
-              content: Text('deposit failed: $e'),
-            ),
-          );
-        }
-      },        
+                  messenger.showSnackBar(
+                    SnackBar(
+                      behavior: SnackBarBehavior.floating,
+                      backgroundColor: Colors.black87,
+                      content: Text(
+                        'deposited \$${amount.toStringAsFixed(0)} into ${fund.label}',
+                      ),
+                    ),
+                  );
+                } catch (e) {
+                  if (!mounted) return;
+                  messenger.showSnackBar(
+                    SnackBar(
+                      behavior: SnackBarBehavior.floating,
+                      backgroundColor: Colors.black87,
+                      content: Text('deposit failed: $e'),
+                    ),
+                  );
+                }
+              },
         icon: Icon(fund.icon),
         label: Text('deposit into ${fund.label}'),
       ),

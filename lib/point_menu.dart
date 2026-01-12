@@ -27,16 +27,14 @@ class PointMenuPage extends StatelessWidget {
   }
 
   bool _isOneAndDoneCategory(CategoryType c) {
-    // Your "to do’s you’ve been putting off" category
     return c == CategoryType.putOffTodos;
   }
 
-  int _defaultPoints(CategoryType c) => Habit.defaultPointsForCategory(c);
-  int _clampPoints(int v) => Habit.clampPoints(v);
+  int _defaultDollars(CategoryType c) => Habit.defaultPointsForCategory(c);
+  int _clampDollars(int v) => Habit.clampPoints(v);
 
   @override
   Widget build(BuildContext context) {
-    // group + sort
     final grouped = <CategoryType, List<Habit>>{
       for (final c in CategoryType.values) c: <Habit>[],
     };
@@ -60,14 +58,14 @@ class PointMenuPage extends StatelessWidget {
             const Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'point menu',
+                'menu',
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
               ),
             ),
             const SizedBox(height: 8),
             const Align(
               alignment: Alignment.centerLeft,
-              child: Text('Set point values based on what motivates you right now.'),
+              child: Text('set dollar values based on what motivates you right now.'),
             ),
             const SizedBox(height: 16),
 
@@ -83,7 +81,7 @@ class PointMenuPage extends StatelessWidget {
                           title: Text(h.name),
                           subtitle: Text(
                             [
-                              '${h.points} pts',
+                              '\$${h.points}',
                               if (h.isExercise) 'exercise',
                               if ((h.reasoning ?? '').trim().isNotEmpty) '“${h.reasoning}”',
                               if (h.oneAndDone) 'one-and-done',
@@ -106,16 +104,16 @@ class PointMenuPage extends StatelessWidget {
                                   final ok = await showDialog<bool>(
                                     context: context,
                                     builder: (_) => AlertDialog(
-                                      title: const Text('Delete habit?'),
-                                      content: Text('Delete “${h.name}” everywhere?'),
+                                      title: const Text('delete habit?'),
+                                      content: Text('delete “${h.name}” everywhere?'),
                                       actions: [
                                         TextButton(
                                           onPressed: () => Navigator.pop(context, false),
-                                          child: const Text('Cancel'),
+                                          child: const Text('cancel'),
                                         ),
                                         FilledButton(
                                           onPressed: () => Navigator.pop(context, true),
-                                          child: const Text('Delete'),
+                                          child: const Text('delete'),
                                         ),
                                       ],
                                     ),
@@ -149,10 +147,9 @@ class PointMenuPage extends StatelessWidget {
                   final newHabit = Habit(
                     id: 'h_${DateTime.now().microsecondsSinceEpoch}',
                     name: 'new habit',
-                    points: _defaultPoints(defaultCat), // ✅ start at default
+                    points: _defaultDollars(defaultCat),
                     category: defaultCat,
                     rank: _nextRankFor(defaultCat),
-                    // oneAndDone inferred by Habit ctor; defaultCat => false
                   );
 
                   habits.add(newHabit);
@@ -174,19 +171,16 @@ class PointMenuPage extends StatelessWidget {
     final reasonCtrl = TextEditingController(text: habit.reasoning ?? '');
 
     bool isExercise = habit.isExercise;
-
-    // local dialog state
     CategoryType selectedCat = habit.category;
 
-    // points state (slider)
-    int points = _clampPoints(habit.points);
+    int dollars = _clampDollars(habit.points);
 
     await showDialog<void>(
       context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setState) => AlertDialog(
-            title: const Text('Edit habit'),
+            title: const Text('edit habit'),
             content: SizedBox(
               width: 520,
               child: Column(
@@ -196,32 +190,31 @@ class PointMenuPage extends StatelessWidget {
                     controller: nameCtrl,
                     decoration: const InputDecoration(
                       labelText: 'name',
-                      labelStyle: TextStyle(height: 1.8), // more space
+                      labelStyle: TextStyle(height: 1.8),
                     ),
                   ),
                   const SizedBox(height: 20),
 
-                  // ✅ points slider
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'Points: $points',
+                      'dollars: \$$dollars',
                       style: const TextStyle(fontWeight: FontWeight.w800),
                     ),
                   ),
                   Slider(
-                    value: points.toDouble(),
+                    value: dollars.toDouble(),
                     min: 1,
                     max: 10,
                     divisions: 9,
-                    label: '$points pts',
-                    onChanged: (v) => setState(() => points = v.round()),
+                    label: '\$$dollars',
+                    onChanged: (v) => setState(() => dollars = v.round()),
                   ),
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'Default for this category is ${_defaultPoints(selectedCat)} '
-                      '(you can customize 1–10).',
+                      'default for this category is \$${_defaultDollars(selectedCat)} '
+                      '(you can customize \$1–\$10).',
                       style: const TextStyle(color: Colors.black54),
                     ),
                   ),
@@ -241,17 +234,14 @@ class PointMenuPage extends StatelessWidget {
                     onChanged: (c) {
                       if (c == null) return;
 
-                      // If the user hasn't customized points (still on old default),
-                      // auto-switch to the new category default.
                       final oldCat = selectedCat;
-                      final oldDefault = _defaultPoints(oldCat);
-                      final newDefault = _defaultPoints(c);
+                      final oldDefault = _defaultDollars(oldCat);
+                      final newDefault = _defaultDollars(c);
 
                       setState(() {
                         selectedCat = c;
-
-                        if (points == oldDefault) {
-                          points = newDefault;
+                        if (dollars == oldDefault) {
+                          dollars = newDefault;
                         }
                       });
                     },
@@ -285,24 +275,20 @@ class PointMenuPage extends StatelessWidget {
       },
     );
 
-    // apply edits
     final newName = nameCtrl.text.trim();
     if (newName.isNotEmpty) habit.name = newName;
 
-    habit.points = _clampPoints(points);
+    habit.points = _clampDollars(dollars);
     habit.reasoning = reasonCtrl.text.trim().isEmpty ? null : reasonCtrl.text.trim();
     habit.isExercise = isExercise;
 
-    // If category changed, update + assign rank inside that category
     if (habit.category != selectedCat) {
       habit.category = selectedCat;
       habit.rank = _nextRankFor(selectedCat, excludeId: habit.id);
     }
 
-    // keep oneAndDone in sync with category
     habit.oneAndDone = _isOneAndDoneCategory(habit.category);
 
-    // If rank is placeholder-y, set it to a real next rank
     if (habit.rank <= 0 || habit.rank >= 9999) {
       habit.rank = _nextRankFor(habit.category, excludeId: habit.id);
     }

@@ -456,7 +456,7 @@ class _FundsPageState extends State<FundsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Add fun purchase goal',
+                    'add fun purchase goal',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
                   ),
                   const SizedBox(height: 12),
