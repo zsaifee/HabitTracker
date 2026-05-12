@@ -169,24 +169,7 @@ class _HabitHomeState extends State<HabitHome> {
     await _persistLogs();
   }
 
-  Future<void> _removeCompletedOneAndDonesForCurrentDay() async {
-  final log = _currentLog();
-  final completed = Set<String>.from(log.completedHabitIds);
-
-  final toDelete = <String>[];
-  for (final h in _habits) {
-    if (h.oneAndDone && completed.contains(h.id)) {
-      toDelete.add(h.id);
-    }
-  }
-
-  for (final id in toDelete) {
-    await _deleteHabit(id);
-  }
-
-  // since _deleteHabit removes ids from logs too, persist logs as well
-  await _persistLogs();
-}
+  
 
 
 
@@ -217,8 +200,6 @@ class _HabitHomeState extends State<HabitHome> {
           setState(() => _setFundValue(fund, _fundValue(fund) + amount));
           await _storage.saveFund(fund, _fundValue(fund));
 
-          // AFTER deposit, remove completed one-and-done todos
-          await _removeCompletedOneAndDonesForCurrentDay();
           },
 
       ),
