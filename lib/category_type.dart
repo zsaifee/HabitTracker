@@ -1,6 +1,4 @@
-// ==============================
 // category_type.dart
-// ==============================
 
 enum CategoryType {
   daily,

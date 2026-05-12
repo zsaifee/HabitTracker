@@ -47,8 +47,6 @@ class AuthService {
     }
   }
 
-  /// ✅ Resend verification while on signup screen:
-  /// Temporarily sign in with the typed email+password, send verification, sign out.
   Future<void> resendVerificationEmailWithPassword({
     required String email,
     required String password,

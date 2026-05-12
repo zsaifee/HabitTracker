@@ -1,6 +1,4 @@
-// ==============================
 // day_log.dart
-// ==============================
 
 import 'habit.dart';
 
@@ -30,8 +28,6 @@ class DayLog {
         ),
       );
 
-  /// Convenience: compute today's total points from the habits list.
-  /// (This stays out of Firestore; it's derived at runtime.)
   int totalPointsFrom(List<Habit> allHabits) {
     final byId = {for (final h in allHabits) h.id: h};
     var sum = 0;

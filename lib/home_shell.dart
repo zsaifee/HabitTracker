@@ -169,9 +169,6 @@ class _HabitHomeState extends State<HabitHome> {
     await _persistLogs();
   }
 
-  
-
-
 
   @override
   Widget build(BuildContext context) {

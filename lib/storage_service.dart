@@ -42,9 +42,7 @@ class StorageService {
   CollectionReference<Map<String, dynamic>> _goalsCol() =>
       _userDoc().collection('goals');
 
-  // =========================
-  // Points defaults (V3)
-  // =========================
+
 
   int defaultPointsForCategory(CategoryType c) {
     switch (c) {
@@ -73,9 +71,7 @@ class StorageService {
     await _userDoc().set({'setupComplete': v}, SetOptions(merge: true));
   }
 
-  // =========================
-  // V2 save
-  // =========================
+
 
   Future<void> saveSetupV2({
     required List<Behavior> behaviors,
@@ -108,7 +104,7 @@ class StorageService {
         Habit(
           id: b.id,
           name: b.name,
-          points: pts, // ✅ default by category
+          points: pts, 
           category: b.category,
           rank: b.rank,
           isExercise: false,
@@ -133,9 +129,7 @@ class StorageService {
     await batch.commit();
   }
 
-  // =========================
   // Habits
-  // =========================
 
   Future<List<Habit>> loadHabits() async {
     final snap = await _habitsCol().get();
@@ -237,9 +231,7 @@ class StorageService {
     await batch.commit();
   }
 
-  // =========================
   // Logs
-  // =========================
 
   Future<Map<String, DayLog>> loadLogs() async {
     final snap = await _logsCol().get();
@@ -265,9 +257,7 @@ class StorageService {
         .set(log.toJson(), SetOptions(merge: true));
   }
 
-  // =========================
   // Funds
-  // =========================
 
   Future<double> loadFund(FundType t) async {
     final snap = await _fundsDoc().get();
@@ -289,9 +279,7 @@ class StorageService {
     );
   }
 
-  // =========================
-  // Defaults (KEEP YOUR EXISTING)
-  // =========================
+
 
   List<Habit> _seedHabits() {
     // IMPORTANT:
@@ -300,9 +288,7 @@ class StorageService {
     return <Habit>[];
   }
 
-  // =========================
-  // Onboarding (you had this)
-  // =========================
+
 
   Future<bool> isOnboardingComplete() async {
     final snap = await _userDoc().get();
@@ -315,9 +301,7 @@ class StorageService {
     await _userDoc().set({'onboardingComplete': v}, SetOptions(merge: true));
   }
 
-  // =========================
-  // Fun Purchase Goal (stored in funds/main)
-  // =========================
+
 
   Future<({String name, double price})> loadFunPurchaseGoal() async {
     final snap = await _fundsDoc().get();
@@ -346,9 +330,7 @@ class StorageService {
     );
   }
 
-  // =========================
-  // Fun Purchase Goals (stored in funds/main)
-  // =========================
+
 
   Future<List<Map<String, dynamic>>> loadFunPurchaseGoalsRaw() async {
     final snap = await _fundsDoc().get();
@@ -372,9 +354,7 @@ class StorageService {
     );
   }
 
-  // =========================
-  // Habit create / update (schema-consistent)
-  // =========================
+
 
   Future<String> createHabit({
     required String name,

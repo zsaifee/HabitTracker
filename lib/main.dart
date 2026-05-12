@@ -98,7 +98,6 @@ class HabitApp extends StatelessWidget {
           // For email/password users: require email verification
           if (!user.emailVerified) {
             return const LoginScreen(); // stays on login so they see the message
-            // (Optionally: return a dedicated VerifyEmailScreen instead)
           }
 
         // Verified user

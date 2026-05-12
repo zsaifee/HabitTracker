@@ -32,15 +32,7 @@ class Habit {
     bool? oneAndDone,
   }) : oneAndDone = oneAndDone ?? _defaultOneAndDone(category);
 
-  // =========================
-  // Defaults (your system)
-  // =========================
 
-  /// Default point values by category:
-  /// - put off todos (avoided tasks): 5
-  /// - feel good irregular (amazing when done): 3
-  /// - want to start (building habits): 2
-  /// - want to maintain (protect routines): 1
   static int defaultPointsForCategory(CategoryType c) {
     switch (c) {
       case CategoryType.monthly:
@@ -105,17 +97,11 @@ class Habit {
 
     final category = CategoryTypeX.fromKey(catKey);
 
-    // Backward compatible:
-    // - If oneAndDone exists, use it.
-    // - Otherwise infer from category (putOffTodos => true).
     final storedOneAndDone = data['oneAndDone'];
     final resolvedOneAndDone = storedOneAndDone is bool
         ? storedOneAndDone
         : _defaultOneAndDone(category);
 
-    // Backward compatible points:
-    // - If points exists, use it.
-    // - Otherwise use default for category.
     final rawPoints = data['points'];
     final resolvedPoints = (rawPoints is int)
         ? rawPoints
