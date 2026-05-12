@@ -25,7 +25,7 @@ class Behavior {
 
   static Behavior fromDoc(String id, Map<String, dynamic> data) {
     final catKey =
-        (data['category'] as String?) ?? CategoryType.wantToMaintain.key;
+        (data['category'] as String?) ?? CategoryType.monthly.key;
 
     return Behavior(
       id: id,

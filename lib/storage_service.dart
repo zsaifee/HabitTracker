@@ -1,6 +1,4 @@
-// ==============================
 // storage_service.dart
-// ==============================
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -50,22 +48,17 @@ class StorageService {
 
   int defaultPointsForCategory(CategoryType c) {
     switch (c) {
-      case CategoryType.putOffTodos:
+      case CategoryType.monthly:
         return 5; // avoided tasks
-      case CategoryType.feelGoodIrregular:
+      case CategoryType.weekly:
         return 3; // amazing when done
-      case CategoryType.wantToStart:
+      case CategoryType.daily:
         return 2; // building habits
-      case CategoryType.wantToMaintain:
-        return 1; // protect routines
     }
   }
 
   int clampPoints(int v) => v.clamp(1, 10);
 
-  // =========================
-  // Setup gate
-  // =========================
 
   Future<bool> isSetupComplete() async {
     final snap = await _userDoc().get();

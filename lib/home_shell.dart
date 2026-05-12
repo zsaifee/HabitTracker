@@ -8,7 +8,6 @@ import 'habit.dart';
 import 'fund_type.dart';
 import 'day_log.dart';
 
-import 'point_menu.dart';
 import 'daily.dart';
 import 'funds.dart';
 import 'storage_service.dart';
@@ -25,7 +24,7 @@ class _HabitHomeState extends State<HabitHome> {
   late final StorageService _storage;
 
 
-  int _tabIndex = 1;
+  int _tabIndex = 0;
 
   final List<Habit> _habits = [];
   final Map<String, DayLog> _logsByDate = {}; // dateKey -> DayLog
@@ -198,13 +197,8 @@ class _HabitHomeState extends State<HabitHome> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
-
     final pages = [
-      PointMenuPage(
-        habits: _habits,
-        onChanged: _onHabitsChanged,
-        onDeleteHabit: _deleteHabit,
-      ),
+
       DailyPage(
         habits: _habits,
         dateKey: _selectedDateKey,
@@ -212,6 +206,8 @@ class _HabitHomeState extends State<HabitHome> {
         log: _currentLog(),
         earnedPoints: _earnedPointsForLog(_currentLog()),
         onToggleHabit: _toggleHabit,
+        onHabitsChanged: _onHabitsChanged,
+        onDeleteHabit: _deleteHabit,
         onNoteChanged: (text) async {
           final log = _currentLog();
           setState(() => log.note = text);
@@ -279,9 +275,8 @@ class _HabitHomeState extends State<HabitHome> {
         selectedIndex: _tabIndex,
         onDestinationSelected: (i) => setState(() => _tabIndex = i),
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.menu_book), label: 'menu ✎'),
-          NavigationDestination(icon: Icon(Icons.today), label: 'today ✨'),
-          NavigationDestination(icon: Icon(Icons.savings), label: 'funds 💸'),
+          NavigationDestination(icon: Icon(Icons.today), label: 'today'),
+          NavigationDestination(icon: Icon(Icons.savings), label: 'funds'),
         ],
       ),
     );

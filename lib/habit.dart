@@ -43,14 +43,12 @@ class Habit {
   /// - want to maintain (protect routines): 1
   static int defaultPointsForCategory(CategoryType c) {
     switch (c) {
-      case CategoryType.putOffTodos:
+      case CategoryType.monthly:
         return 5;
-      case CategoryType.feelGoodIrregular:
+      case CategoryType.weekly:
         return 3;
-      case CategoryType.wantToStart:
+      case CategoryType.daily:
         return 2;
-      case CategoryType.wantToMaintain:
-        return 1;
     }
   }
 
@@ -58,7 +56,7 @@ class Habit {
 
   /// Default rule: treat "to do’s you’ve been putting off" as one-and-done.
   static bool _defaultOneAndDone(CategoryType c) {
-    return c == CategoryType.putOffTodos;
+    return c == CategoryType.daily;
   }
 
   Habit copyWith({
@@ -101,7 +99,7 @@ class Habit {
   static Habit fromJson(Map<String, dynamic> data) {
     final id = (data['id'] as String?) ?? '';
     final catKey =
-        (data['category'] as String?) ?? CategoryType.wantToMaintain.key;
+        (data['category'] as String?) ?? CategoryType.monthly.key;
 
     final category = CategoryTypeX.fromKey(catKey);
 
@@ -136,7 +134,7 @@ class Habit {
   static Habit fromDoc(String id, Map<String, dynamic> data) {
     // Your Firestore docs may not store id in the body; doc id is truth.
     final catKey =
-        (data['category'] as String?) ?? CategoryType.wantToMaintain.key;
+        (data['category'] as String?) ?? CategoryType.weekly.key;
 
     final category = CategoryTypeX.fromKey(catKey);
 
