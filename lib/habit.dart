@@ -49,6 +49,8 @@ class Habit {
         return 3;
       case CategoryType.daily:
         return 2;
+      case CategoryType.custom:
+        return 1;
     }
   }
 

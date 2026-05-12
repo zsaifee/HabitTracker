@@ -54,6 +54,8 @@ class StorageService {
         return 3; // amazing when done
       case CategoryType.daily:
         return 2; // building habits
+      case CategoryType.custom:
+        return 1; // building habits
     }
   }
 

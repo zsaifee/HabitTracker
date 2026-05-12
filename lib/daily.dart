@@ -164,7 +164,7 @@ class _DailyPageState extends State<DailyPage> {
   Future<void> _addCustomHabit(
     BuildContext context,
   ) async {
-    final defaultCat = CategoryType.daily;
+    final defaultCat = CategoryType.custom;
 
     final newHabit = Habit(
       id:
@@ -188,119 +188,80 @@ class _DailyPageState extends State<DailyPage> {
   }
 
   Future<void> _editHabitDialog(
-    BuildContext context,
-    Habit habit, {
-    bool simpleMode = false,
-  }) async {
-    final nameCtrl =
-        TextEditingController(text: habit.name);
+  BuildContext context,
+  Habit habit, {
+  bool simpleMode = false,
+}) async {
+  final nameCtrl = TextEditingController(text: habit.name);
 
-    final reasonCtrl =
-        TextEditingController(
-      text: habit.reasoning ?? '',
-    );
+  CategoryType selectedCat = habit.category;
+  int dollars = _clampDollars(habit.points);
 
-    bool isExercise = habit.isExercise;
+  final basicCategories = [
+    CategoryType.daily,
+    CategoryType.weekly,
+    CategoryType.monthly,
+  ];
 
-    CategoryType selectedCat = habit.category;
+  if (simpleMode && !basicCategories.contains(selectedCat)) {
+    selectedCat = CategoryType.daily;
+  }
 
-    int dollars =
-        _clampDollars(habit.points);
-
-    final basicCategories = [
-      CategoryType.daily,
-      CategoryType.weekly,
-      CategoryType.monthly,
-    ];
-
-    if (simpleMode &&
-        !basicCategories.contains(selectedCat)) {
-      selectedCat = CategoryType.daily;
-    }
-
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder:
-              (context, setDialogState) =>
-                  AlertDialog(
-            title: Text(
-              simpleMode
-                  ? 'add basic habit'
-                  : 'add custom habit',
-            ),
-            content: SizedBox(
-              width: 520,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nameCtrl,
-                    decoration:
-                        const InputDecoration(
-                      labelText: 'name',
-                      labelStyle:
-                          TextStyle(
-                        height: 1.8,
-                      ),
-                    ),
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) {
+      return StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(simpleMode ? 'add basic habit' : 'add custom habit'),
+          content: SizedBox(
+            width: 520,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'name',
+                    labelStyle: TextStyle(height: 1.8),
                   ),
+                ),
 
+                const SizedBox(height: 20),
+
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'dollars: \$$dollars',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+
+                Slider(
+                  value: dollars.toDouble(),
+                  min: 1,
+                  max: 10,
+                  divisions: 9,
+                  label: '\$$dollars',
+                  onChanged: (v) {
+                    setDialogState(() {
+                      dollars = v.round();
+                    });
+                  },
+                ),
+
+                if (simpleMode) ...[
                   const SizedBox(height: 20),
 
-                  Align(
-                    alignment:
-                        Alignment.centerLeft,
-                    child: Text(
-                      'dollars: \$$dollars',
-                      style:
-                          const TextStyle(
-                        fontWeight:
-                            FontWeight.w800,
-                      ),
-                    ),
-                  ),
-
-                  Slider(
-                    value:
-                        dollars.toDouble(),
-                    min: 1,
-                    max: 10,
-                    divisions: 9,
-                    label: '\$$dollars',
-                    onChanged: (v) {
-                      setDialogState(() {
-                        dollars =
-                            v.round();
-                      });
-                    },
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  DropdownButtonFormField<
-                      CategoryType>(
-                    initialValue:
-                        selectedCat,
-                    decoration:
-                        InputDecoration(
-                      labelText:
-                          simpleMode
-                              ? 'frequency'
-                              : 'category',
+                  DropdownButtonFormField<CategoryType>(
+                    initialValue: selectedCat,
+                    decoration: const InputDecoration(
+                      labelText: 'frequency',
                     ),
                     items: [
-                      for (final c
-                          in simpleMode
-                              ? basicCategories
-                              : CategoryType
-                                  .values)
+                      for (final c in basicCategories)
                         DropdownMenuItem(
                           value: c,
-                          child: Text(
-                            c.title,
-                          ),
+                          child: Text(c.title),
                         ),
                     ],
                     onChanged: (c) {
@@ -311,113 +272,43 @@ class _DailyPageState extends State<DailyPage> {
                       });
                     },
                   ),
-
-                  if (!simpleMode) ...[
-                    const SizedBox(
-                      height: 12,
-                    ),
-
-                    TextField(
-                      controller:
-                          reasonCtrl,
-                      decoration:
-                          const InputDecoration(
-                        labelText:
-                            'reasoning (optional)',
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 8,
-                    ),
-
-                    SwitchListTile(
-                      value: isExercise,
-                      onChanged: (v) {
-                        setDialogState(() {
-                          isExercise = v;
-                        });
-                      },
-                      title: const Text(
-                        'mark as exercise',
-                      ),
-                      contentPadding:
-                          EdgeInsets.zero,
-                    ),
-                  ],
                 ],
-              ),
+              ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  final newName =
-                      nameCtrl.text.trim();
-
-                  if (newName.isEmpty) {
-                    widget.habits.removeWhere(
-                      (h) =>
-                          h.id ==
-                          habit.id,
-                    );
-                  }
-
-                  Navigator.pop(
-                    dialogContext,
-                  );
-                },
-                child:
-                    const Text('cancel'),
-              ),
-              FilledButton(
-                onPressed: () =>
-                    Navigator.pop(
-                  dialogContext,
-                ),
-                child:
-                    const Text('save'),
-              ),
-            ],
           ),
-        );
-      },
-    );
+          actions: [
+            TextButton(
+              onPressed: () {
+                final newName = nameCtrl.text.trim();
 
-    final newName =
-        nameCtrl.text.trim();
+                if (newName.isEmpty) {
+                  widget.habits.removeWhere((h) => h.id == habit.id);
+                }
 
-    if (newName.isEmpty) return;
-
-    habit.name = newName;
-    habit.points =
-        _clampDollars(dollars);
-    habit.category = selectedCat;
-
-    habit.rank = _nextRankFor(
-      selectedCat,
-      excludeId: habit.id,
-    );
-
-    if (simpleMode) {
-      habit.reasoning = null;
-      habit.isExercise = false;
-    } else {
-      habit.reasoning =
-          reasonCtrl.text.trim().isEmpty
-              ? null
-              : reasonCtrl.text.trim();
-
-      habit.isExercise = isExercise;
-    }
-
-    if (habit.rank <= 0 ||
-        habit.rank >= 9999) {
-      habit.rank = _nextRankFor(
-        habit.category,
-        excludeId: habit.id,
+                Navigator.pop(dialogContext);
+              },
+              child: const Text('cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('save'),
+            ),
+          ],
+        ),
       );
-    }
-  }
+    },
+  );
+
+  final newName = nameCtrl.text.trim();
+  if (newName.isEmpty) return;
+
+  habit.name = newName;
+  habit.points = _clampDollars(dollars);
+  habit.category = selectedCat;
+  habit.rank = _nextRankFor(selectedCat, excludeId: habit.id);
+  habit.reasoning = null;
+  habit.isExercise = false;
+}
 
   @override
   Widget build(BuildContext context) {

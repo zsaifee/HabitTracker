@@ -6,6 +6,7 @@ enum CategoryType {
   daily,
   weekly,
   monthly,
+  custom,
 }
 
 extension CategoryTypeX on CategoryType {
@@ -20,18 +21,22 @@ extension CategoryTypeX on CategoryType {
         CategoryType.daily => 'daily',
         CategoryType.weekly => 'weekly',
         CategoryType.monthly => 'monthly',
+        CategoryType.custom => 'custom',
       };
 
   String get title => switch (this) {
         CategoryType.daily => 'daily',
         CategoryType.weekly => 'weekly',
         CategoryType.monthly => 'monthly',
+        CategoryType.custom => 'custom',
+
       };
 
   String get rankingPrompt => switch (this) {
         CategoryType.daily => 'Daily habits',
         CategoryType.weekly => 'Weekly habits',
         CategoryType.monthly => 'Monthly habits',
+        CategoryType.custom => 'custom',
       };
 
   bool get usesFrequency => true;
@@ -43,6 +48,8 @@ extension CategoryTypeX on CategoryType {
           'Recurring habits you want to do about once a week.',
         CategoryType.monthly =>
           'Recurring habits you only need to do once in a while.',
+        CategoryType.custom =>
+          'Whatever you want.',
       };
 
   List<String> get setupExamples => switch (this) {
@@ -69,11 +76,16 @@ extension CategoryTypeX on CategoryType {
             'schedule appointments',
             'reset budget',
           ],
+          CategoryType.custom => const [
+            'literally anything',
+          ],
       };
 
   String get setupFrequencyNote => switch (this) {
         CategoryType.daily => 'Daily.',
         CategoryType.weekly => 'Weekly.',
         CategoryType.monthly => 'Monthly.',
+        CategoryType.custom => 'Custom.',
+
       };
 }
