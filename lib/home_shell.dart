@@ -12,7 +12,6 @@ import 'point_menu.dart';
 import 'daily.dart';
 import 'funds.dart';
 import 'storage_service.dart';
-import 'setup_wizard.dart';
 import 'signup_onboarding.dart';
 
 class HabitHome extends StatefulWidget {
@@ -25,9 +24,6 @@ class HabitHome extends StatefulWidget {
 class _HabitHomeState extends State<HabitHome> {
   late final StorageService _storage;
 
-  // gates
-  bool? _setupComplete;
-  bool? _onboardingComplete;
 
   int _tabIndex = 1;
 
@@ -50,25 +46,9 @@ class _HabitHomeState extends State<HabitHome> {
   Future<void> _init() async {
     setState(() {
       _loading = true;
-      _setupComplete = null;
-      _onboardingComplete = null;
-    });
-
-    final setupDone = await _storage.isSetupComplete();
-    final onboardingDone = await _storage.isOnboardingComplete();
-    if (!mounted) return;
-
-    setState(() {
-      _setupComplete = setupDone;
-      _onboardingComplete = onboardingDone;
-    });
-
-    // only load the full app data if both gates are done
-    if (setupDone && onboardingDone) {
-      await _loadAll();
-    } else {
-      setState(() => _loading = false);
-    }
+      });
+  await _loadAll();
+  
   }
 
   static String _todayKey() {
@@ -213,41 +193,6 @@ class _HabitHomeState extends State<HabitHome> {
 
   @override
   Widget build(BuildContext context) {
-    // still checking gates
-    if (_setupComplete == null || _onboardingComplete == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    // 1) setup wizard first
-    if (_setupComplete == false) {
-      return SetupWizard(
-        onDone: () async {
-          if (!mounted) return;
-          // saveSetupV2 already set setupComplete:true
-          setState(() {
-            _setupComplete = true;
-            _onboardingComplete = false; // force onboarding next
-          });
-        },
-      );
-    }
-
-    // 2) then onboarding screens
-    if (_setupComplete == true && _onboardingComplete == false) {
-      return SignupOnboarding(
-        onDone: () async {
-          await _storage.setOnboardingComplete(true);
-          if (!mounted) return;
-          setState(() {
-            _onboardingComplete = true;
-          });
-          await _loadAll();
-        },
-      );
-    }
-
     if (_loading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -304,6 +249,22 @@ class _HabitHomeState extends State<HabitHome> {
           ),
         ),
         actions: [
+          IconButton(
+        icon: const Icon(Icons.info_outline),
+        tooltip: 'How it works',
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => SignupOnboarding(
+                onDone: () {
+                  Navigator.pop(context);
+                },
+              ),
+            ),
+          );
+        },
+      ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Sign out',
