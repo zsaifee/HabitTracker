@@ -21,6 +21,7 @@ class DailyPage extends StatefulWidget {
   final Future<void> Function(FundType fund, double amount) onDeposit;
   final Future<void> Function(String habitId) onDeleteHabit;
   final Future<void> Function() onHabitsChanged;
+  final double Function(FundType fund) fundValue;
 
   const DailyPage({
     super.key,
@@ -34,6 +35,7 @@ class DailyPage extends StatefulWidget {
     required this.onDeposit,
     required this.onHabitsChanged,
     required this.onDeleteHabit,
+    required this.fundValue,
   });
 
   @override
@@ -114,25 +116,72 @@ class _DailyPageState extends State<DailyPage> {
   }
 
   List<Habit> _urgentHabits() {
-    final today = DateTime.now();
+  final today = DateTime.now();
 
-    return widget.habits.where((habit) {
-      final deadline = _tryGetDeadline(habit);
+  int daysSinceCompleted(Habit habit) {
+    final raw = habit.lastCompletedDate;
 
-      if (deadline == null) return false;
+    if (raw == null || raw.isEmpty) {
+      return 999;
+    }
 
-      final daysAway =
-          deadline.difference(today).inDays;
+    final last = DateTime.tryParse(raw);
+    if (last == null) {
+      return 999;
+    }
 
-      final completed = widget
-          .log.completedHabitIds
-          .contains(habit.id);
-
-      return !completed &&
-          daysAway >= 0 &&
-          daysAway <= 3;
-    }).toList();
+    return today.difference(last).inDays;
   }
+
+  return widget.habits.where((habit) {
+    final completedToday =
+        widget.log.completedHabitIds.contains(habit.id);
+
+    if (completedToday) return false;
+
+    final days = daysSinceCompleted(habit);
+
+    switch (habit.category) {
+      case CategoryType.daily:
+        return days >= 1;
+      case CategoryType.weekly:
+        return days >= 7;
+      case CategoryType.monthly:
+        return days >= 30;
+      case CategoryType.custom:
+        return days >= 7;
+    }
+  }).toList();
+}
+
+  Widget _fundBalanceRow(FundType fund) {
+    final balance = widget.fundValue(fund);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppStyle.fundColor(fund).withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black12),
+      ),
+      child: Row(
+        children: [
+          Icon(fund.icon, size: 20, color: Colors.black87),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              fund.label,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+          Text(
+            '\$${balance.toStringAsFixed(2)}',
+            style: const TextStyle(fontWeight: FontWeight.w900),
+          ),
+        ],
+      ),
+    );
+  } 
 
   Future<void> _addBasicHabit(
     BuildContext context,
@@ -718,6 +767,11 @@ class _DailyPageState extends State<DailyPage> {
             ),
 
             const SizedBox(height: 10),
+            _fundBalanceRow(FundType.lilTreat),
+            const SizedBox(height: 8),
+            _fundBalanceRow(FundType.funPurchase),
+
+            const SizedBox(height: 14),
 
             Text(
               'available to deposit: \$${earnedDollars.toStringAsFixed(0)}',

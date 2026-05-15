@@ -8,7 +8,6 @@ class Habit {
   String id;
   String name;
 
-  /// 1–10 points (defaults depend on category, but user can override)
   int points;
 
   bool isExercise;
@@ -17,9 +16,12 @@ class Habit {
   CategoryType category;
   int rank;
 
-  /// If true, this is a "one and done" item (e.g. a put-off todo).
-  /// Once completed, it should be removed from the point menu (deleted or archived).
-  bool oneAndDone;
+  
+  bool oneAndDone; // not used anymore
+
+  String? lastCompletedDate;
+
+
 
   Habit({
     required this.id,
@@ -29,6 +31,7 @@ class Habit {
     this.rank = 0,
     this.isExercise = false,
     this.reasoning,
+    this.lastCompletedDate,
     bool? oneAndDone,
   }) : oneAndDone = oneAndDone ?? _defaultOneAndDone(category);
 
@@ -62,6 +65,7 @@ class Habit {
     CategoryType? category,
     int? rank,
     bool? oneAndDone,
+    String? lastCompletedDate,
   }) {
     final newCategory = category ?? this.category;
 
@@ -74,7 +78,8 @@ class Habit {
       category: newCategory,
       rank: rank ?? this.rank,
       // If explicitly provided, respect it. Otherwise default based on category.
-      oneAndDone: oneAndDone ?? _defaultOneAndDone(newCategory),
+      oneAndDone: oneAndDone ?? _defaultOneAndDone(newCategory), // not used anymore
+      lastCompletedDate: lastCompletedDate ?? this.lastCompletedDate,
     );
   }
 
@@ -88,6 +93,7 @@ class Habit {
         'category': category.key,
         'rank': rank,
         'oneAndDone': oneAndDone,
+        'lastCompletedDate': lastCompletedDate,
       };
 
   static Habit fromJson(Map<String, dynamic> data) {
@@ -116,6 +122,7 @@ class Habit {
       category: category,
       rank: (data['rank'] as int?) ?? 0,
       oneAndDone: resolvedOneAndDone,
+      lastCompletedDate: data['lastCompletedDate'] as String?, 
     );
   }
 
@@ -145,6 +152,7 @@ class Habit {
       category: category,
       rank: (data['rank'] as int?) ?? 0,
       oneAndDone: resolvedOneAndDone,
+      lastCompletedDate: data['lastCompletedDate'] as String?,
     );
   }
 }

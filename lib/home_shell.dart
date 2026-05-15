@@ -156,18 +156,22 @@ class _HabitHomeState extends State<HabitHome> {
   }
   
   Future<void> _toggleHabit(String habitId, bool checked) async {
-    final log = _currentLog();
+  final log = _currentLog();
 
-    setState(() {
-      if (checked) {
-        log.completedHabitIds.add(habitId);
-      } else {
-        log.completedHabitIds.remove(habitId);
-      }
-    });
+  setState(() {
+    if (checked) {
+      log.completedHabitIds.add(habitId);
 
-    await _persistLogs();
-  }
+      final habit = _habits.firstWhere((h) => h.id == habitId);
+      habit.lastCompletedDate = _selectedDateKey;
+    } else {
+      log.completedHabitIds.remove(habitId);
+    }
+  });
+
+  await _persistLogs();
+  await _persistHabits();
+}
 
 
   @override
@@ -188,6 +192,7 @@ class _HabitHomeState extends State<HabitHome> {
         onToggleHabit: _toggleHabit,
         onHabitsChanged: _onHabitsChanged,
         onDeleteHabit: _deleteHabit,
+        fundValue: (fund) => _fundValue(fund),
         onNoteChanged: (text) async {
           final log = _currentLog();
           setState(() => log.note = text);
