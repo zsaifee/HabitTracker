@@ -582,10 +582,6 @@ class _FundsPageState extends State<FundsPage> {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      OutlinedButton(onPressed: () => setAmount(current - 1), child: const Text('-1')),
-                      OutlinedButton(onPressed: () => setAmount(current - 5), child: const Text('-5')),
-                      OutlinedButton(onPressed: () => setAmount(current + 1), child: const Text('+1')),
-                      OutlinedButton(onPressed: () => setAmount(current + 5), child: const Text('+5')),
                       TextButton(onPressed: () => setAmount(balance), child: const Text('max')),
                     ],
                   ),
